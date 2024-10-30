@@ -12,9 +12,9 @@ env:
     OUTPUT_DIR: "examples/output"
     OUTPUT_FILE: "hdr_result.jpg"
     # Flat environment variables instead of nested map
-    TEST_IMAGE_LOW: "https://www.easyhdr.com/examples/pond/pondlow.jpg"
-    TEST_IMAGE_MID: "https://www.easyhdr.com/examples/pond/pondmid.jpg"
-    TEST_IMAGE_HIGH: "https://www.easyhdr.com/examples/pond/pondhigh.jpg"
+    TEST_IMAGE_LOW: "https://www.easyhdr.com/examples/pond/pond2.jpg"
+    TEST_IMAGE_MID: "https://www.easyhdr.com/examples/pond/pond3.jpg"
+    TEST_IMAGE_HIGH: "https://www.easyhdr.com/examples/pond/pond1.jpg"
 
 jobs:
     process-hdr:

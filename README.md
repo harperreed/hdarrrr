@@ -21,11 +21,12 @@ With a user-friendly command-line interface, this tool is simple yet effective, 
 3. **Run the Application**:
    Use the following command to execute the program, replacing the paths with your image file paths:
    ```bash
-   go run ./cmd/hdarrrr/main.go -low path/to/low_exposure.jpg -mid path/to/mid_exposure.jpg -high path/to/high_exposure.jpg -output path/to/output_image.jpg
+   go run ./cmd/hdarrrr/main.go -low path/to/low_exposure.jpg -mid path/to/mid_exposure.jpg -high path/to/high_exposure.jpg -output path/to/output_image.jpg -tone-mapping reinhard
    ```
 
    - The `-low`, `-mid`, and `-high` flags are required for specifying the input images.
    - The `-output` flag allows you to specify the name of the output HDR image. If omitted, the default will be `hdr_output.jpg`.
+   - The `-tone-mapping` flag allows you to select the tone mapping algorithm. Supported algorithms are `reinhard` and `drago`.
 
 4. **Check Output**:
    After running the command, you should see a message indicating that the HDR image was successfully saved at the specified location!

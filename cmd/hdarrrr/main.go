@@ -18,6 +18,7 @@ func main() {
 	img2Path := flag.String("mid", "", "Path to mid exposure image (required)")
 	img3Path := flag.String("high", "", "Path to high exposure image (required)")
 	outputPath := flag.String("output", "hdr_output.jpg", "Path for output HDR image")
+	toneMapping := flag.String("tone-mapping", "reinhard", "Tone mapping algorithm to use (reinhard, drago)")
 
 	// Parse command line arguments
 	flag.Parse()
@@ -44,8 +45,19 @@ func main() {
 		log.Fatal("Error loading images:", err)
 	}
 
+	// Select tone mapping algorithm
+	var toneMapper processor.ToneMapper
+	switch *toneMapping {
+	case "reinhard":
+		toneMapper = processor.NewReinhardToneMapper()
+	case "drago":
+		toneMapper = processor.NewDragoToneMapper(100.0, 0.85)
+	default:
+		log.Fatalf("Error: Unsupported tone mapping algorithm %s. Supported algorithms: reinhard, drago", *toneMapping)
+	}
+
 	// Process HDR
-	hdrProcessor := processor.NewHDRProcessor()
+	hdrProcessor := processor.NewHDRProcessor(toneMapper)
 	output, err := hdrProcessor.Process(images)
 	if err != nil {
 		log.Fatal("Error processing HDR:", err)

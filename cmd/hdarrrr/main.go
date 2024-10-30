@@ -11,6 +11,7 @@ import (
 
 	"github.com/harperreed/hdarrrr/internal/processor"
 	"github.com/harperreed/hdarrrr/pkg/imaging"
+	"github.com/harperreed/hdarrrr/pkg/align"
 )
 
 func main() {
@@ -45,14 +46,21 @@ func main() {
         log.Fatal("Error loading images:", err)
     }
 
+    // Align images
+    alignedImages, err := align.AlignImages(images)
+    if err != nil {
+        log.Printf("Warning: Image alignment failed: %v", err)
+        alignedImages = images // Use original images if alignment fails
+    }
+
     // Validate image properties
-    if err := validateImageProperties(images); err != nil {
+    if err := validateImageProperties(alignedImages); err != nil {
         log.Fatal("Error validating image properties:", err)
     }
 
     // Process HDR
     hdrProcessor := processor.NewHDRProcessor()
-    output, err := hdrProcessor.Process(images)
+    output, err := hdrProcessor.Process(alignedImages)
     if err != nil {
         log.Fatal("Error processing HDR:", err)
     }

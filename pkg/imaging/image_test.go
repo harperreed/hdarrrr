@@ -276,3 +276,59 @@ func TestValidateImageProperties(t *testing.T) {
 		t.Error("Expected properties to not match for image1 and image3")
 	}
 }
+
+func TestAlignImages(t *testing.T) {
+	tests := []struct {
+		name        string
+		images      []image.Image
+		expectError bool
+	}{
+		{
+			name: "Aligned images",
+			images: []image.Image{
+				createTestImage(t, "png", color.RGBA{R: 255, G: 0, B: 0, A: 255}).data,
+				createTestImage(t, "png", color.RGBA{R: 0, G: 255, B: 0, A: 255}).data,
+				createTestImage(t, "png", color.RGBA{R: 0, G: 0, B: 255, A: 255}).data,
+			},
+			expectError: false,
+		},
+		{
+			name: "Misaligned images",
+			images: []image.Image{
+				createTestImage(t, "png", color.RGBA{R: 255, G: 0, B: 0, A: 255}).data,
+				createTestImage(t, "png", color.RGBA{R: 0, G: 255, B: 0, A: 255}).data,
+				createTestImage(t, "jpeg", color.RGBA{R: 0, G: 0, B: 255, A: 255}).data,
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			alignedImages, err := AlignImages(tt.images)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if len(alignedImages) != len(tt.images) {
+				t.Errorf("Expected %d aligned images, got %d", len(tt.images), len(alignedImages))
+			}
+
+			// Check that aligned images have the same dimensions
+			baseBounds := alignedImages[0].Bounds()
+			for i, img := range alignedImages[1:] {
+				if img.Bounds() != baseBounds {
+					t.Errorf("Aligned image %d has different dimensions", i+1)
+				}
+			}
+		})
+	}
+}

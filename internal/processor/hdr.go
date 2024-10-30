@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+
+	"github.com/harperreed/hdarrrr/pkg/align"
 )
 
 // HDRPixel represents a pixel with high dynamic range values
@@ -35,8 +37,14 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 		return nil, err
 	}
 
-	width := images[0].Bounds().Max.X
-	height := images[0].Bounds().Max.Y
+	// Align images
+	alignedImages, err := align.AlignImages(images)
+	if err != nil {
+		return nil, fmt.Errorf("image alignment failed: %v", err)
+	}
+
+	width := alignedImages[0].Bounds().Max.X
+	height := alignedImages[0].Bounds().Max.Y
 
 	// Create HDR image
 	hdrImage := make([][]HDRPixel, height)
@@ -47,9 +55,9 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 	// Merge exposures into HDR image
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			r1, g1, b1, _ := images[0].At(x, y).RGBA()
-			r2, g2, b2, _ := images[1].At(x, y).RGBA()
-			r3, g3, b3, _ := images[2].At(x, y).RGBA()
+			r1, g1, b1, _ := alignedImages[0].At(x, y).RGBA()
+			r2, g2, b2, _ := alignedImages[1].At(x, y).RGBA()
+			r3, g3, b3, _ := alignedImages[2].At(x, y).RGBA()
 
 			hdrImage[y][x] = HDRPixel{
 				R: p.mergeExposures(float64(r1)/65535, float64(r2)/65535, float64(r3)/65535),
@@ -60,7 +68,7 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 	}
 
 	// Tone map HDR image to LDR
-	output := image.NewRGBA(images[0].Bounds())
+	output := image.NewRGBA(alignedImages[0].Bounds())
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			pixel := hdrImage[y][x]

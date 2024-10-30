@@ -1,0 +1,103 @@
+package processor
+
+import (
+	"errors"
+	"image"
+	"image/color"
+)
+
+// HDRPixel represents a pixel with high dynamic range values
+type HDRPixel struct {
+	R, G, B float64
+}
+
+// HDRProcessor handles the HDR image processing
+type HDRProcessor struct {
+	toneMapper ToneMapper
+}
+
+// NewHDRProcessor creates a new HDR processor with default settings
+func NewHDRProcessor() *HDRProcessor {
+	return &HDRProcessor{
+		toneMapper: NewReinhardToneMapper(),
+	}
+}
+
+// Process creates an HDR image from three exposure images
+func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
+	if len(images) != 3 {
+		return nil, errors.New("exactly three images are required")
+	}
+
+	// Verify image dimensions match
+	bounds := images[0].Bounds()
+	for _, img := range images[1:] {
+		if img.Bounds() != bounds {
+			return nil, errors.New("all images must have the same dimensions")
+		}
+	}
+
+	width := bounds.Max.X
+	height := bounds.Max.Y
+
+	// Create HDR image
+	hdrImage := make([][]HDRPixel, height)
+	for i := range hdrImage {
+		hdrImage[i] = make([]HDRPixel, width)
+	}
+
+	// Merge exposures into HDR image
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			r1, g1, b1, _ := images[0].At(x, y).RGBA()
+			r2, g2, b2, _ := images[1].At(x, y).RGBA()
+			r3, g3, b3, _ := images[2].At(x, y).RGBA()
+
+			hdrImage[y][x] = HDRPixel{
+				R: p.mergeExposures(float64(r1)/65535, float64(r2)/65535, float64(r3)/65535),
+				G: p.mergeExposures(float64(g1)/65535, float64(g2)/65535, float64(g3)/65535),
+				B: p.mergeExposures(float64(b1)/65535, float64(b2)/65535, float64(b3)/65535),
+			}
+		}
+	}
+
+	// Tone map HDR image to LDR
+	output := image.NewRGBA(bounds)
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			pixel := hdrImage[y][x]
+			r := p.toneMapper.ToneMap(pixel.R)
+			g := p.toneMapper.ToneMap(pixel.G)
+			b := p.toneMapper.ToneMap(pixel.B)
+
+			output.Set(x, y, color.RGBA{
+				R: uint8(r * 255),
+				G: uint8(g * 255),
+				B: uint8(b * 255),
+				A: 255,
+			})
+		}
+	}
+
+	return output, nil
+}
+
+func (p *HDRProcessor) mergeExposures(v1, v2, v3 float64) float64 {
+	w1 := p.weight(v1)
+	w2 := p.weight(v2)
+	w3 := p.weight(v3)
+
+	sumWeights := w1 + w2 + w3
+	if sumWeights == 0 {
+		return 0
+	}
+
+	return (v1*w1 + v2*w2 + v3*w3) / sumWeights
+}
+
+func (p *HDRProcessor) weight(v float64) float64 {
+	if v <= 0 || v >= 1 {
+		return 0
+	}
+	return 1 - (2*v - 1)*(2*v - 1)
+}

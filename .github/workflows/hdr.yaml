@@ -6,7 +6,7 @@ on:
             - "**.go"
             - "go.mod"
             - "go.sum"
-            - ".github/workflows/hdr-processing.yml"
+            - ".github/workflows/hdr.yml"
 
 # Environment variables for reusability and easier maintenance
 env:

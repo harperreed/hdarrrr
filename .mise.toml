@@ -6,9 +6,9 @@ golangci-lint = "1.61.0" # Add this line
 run = "repo2txt --exclude-dir  public resources node_modules pb_data vendor --ignore-files package-lock.json spec.md go.sum hdarrrr --ignore-types .db"
 description = 'Remove all the various output.txts'                                                                                                      # hide this task from the list
 [tasks]
-build = "go build"
+build = "go build ./cmd/hdarrrr/"
 test = "go test -v ./... -coverprofile=coverage.out -covermode=atomic && go tool cover -html=coverage.out -o coverage.html"
-clean = "go clean && rm -f image-dupes"
+clean = "go clean && rm -f hdarrrr"
 lint = "golangci-lint run"
 lint-fix = "golangci-lint run --fix"
 lint-all = "golangci-lint run --enable-all"

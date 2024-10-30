@@ -17,6 +17,34 @@ var SupportedFormats = map[string]bool{
 	".jpeg": true,
 }
 
+// ImageProperties holds the properties of an image
+type ImageProperties struct {
+	Width      int
+	Height     int
+	ColorDepth int
+	Format     string
+}
+
+// GetImageProperties retrieves the properties of an image
+func GetImageProperties(img image.Image, format string) ImageProperties {
+	bounds := img.Bounds()
+	colorDepth := 8 // Assuming 8 bits per channel for simplicity
+	return ImageProperties{
+		Width:      bounds.Dx(),
+		Height:     bounds.Dy(),
+		ColorDepth: colorDepth,
+		Format:     format,
+	}
+}
+
+// ValidateImageProperties checks if two images have the same properties
+func ValidateImageProperties(baseProps, props ImageProperties) bool {
+	return baseProps.Width == props.Width &&
+		baseProps.Height == props.Height &&
+		baseProps.ColorDepth == props.ColorDepth &&
+		baseProps.Format == props.Format
+}
+
 // LoadImages loads multiple images from file paths
 func LoadImages(paths ...string) ([]image.Image, error) {
 	images := make([]image.Image, len(paths))
@@ -27,6 +55,17 @@ func LoadImages(paths ...string) ([]image.Image, error) {
 			return nil, err
 		}
 		images[i] = img
+	}
+
+	// Validate image properties
+	if len(images) > 1 {
+		baseProps := GetImageProperties(images[0], strings.ToLower(path.Ext(paths[0])))
+		for i, img := range images[1:] {
+			props := GetImageProperties(img, strings.ToLower(path.Ext(paths[i+1])))
+			if !ValidateImageProperties(baseProps, props) {
+				return nil, errors.New("image properties do not match")
+			}
+		}
 	}
 
 	return images, nil

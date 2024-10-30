@@ -2,6 +2,7 @@ package processor
 
 import (
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 )
@@ -29,16 +30,13 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 		return nil, errors.New("exactly three images are required")
 	}
 
-	// Verify image dimensions match
-	bounds := images[0].Bounds()
-	for _, img := range images[1:] {
-		if img.Bounds() != bounds {
-			return nil, errors.New("all images must have the same dimensions")
-		}
+	// Validate image properties
+	if err := validateImageProperties(images); err != nil {
+		return nil, err
 	}
 
-	width := bounds.Max.X
-	height := bounds.Max.Y
+	width := images[0].Bounds().Max.X
+	height := images[0].Bounds().Max.Y
 
 	// Create HDR image
 	hdrImage := make([][]HDRPixel, height)
@@ -62,7 +60,7 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 	}
 
 	// Tone map HDR image to LDR
-	output := image.NewRGBA(bounds)
+	output := image.NewRGBA(images[0].Bounds())
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			pixel := hdrImage[y][x]
@@ -99,5 +97,30 @@ func (p *HDRProcessor) weight(v float64) float64 {
 	if v <= 0 || v >= 1 {
 		return 0
 	}
-	return 1 - (2*v - 1)*(2*v - 1)
+	return 1 - (2*v-1)*(2*v-1)
+}
+
+// Only showing the validation function since the rest of the file remains the same
+func validateImageProperties(images []image.Image) error {
+	if len(images) < 2 {
+		return errors.New("at least two images are required for validation")
+	}
+
+	baseImg := images[0]
+	baseColorModel := baseImg.ColorModel()
+	baseBounds := baseImg.Bounds()
+
+	for i, img := range images[1:] {
+		// Check dimensions
+		if img.Bounds() != baseBounds {
+			return fmt.Errorf("image %d has different dimensions than the first image", i+2)
+		}
+
+		// Check color model
+		if img.ColorModel() != baseColorModel {
+			return fmt.Errorf("image %d has a different color model than the first image", i+2)
+		}
+	}
+
+	return nil
 }

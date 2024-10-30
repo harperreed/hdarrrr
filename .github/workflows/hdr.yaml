@@ -1,0 +1,91 @@
+name: HDR Image Processing
+on:
+    pull_request:
+        types: [opened, synchronize]
+        paths:
+            - "**.go"
+            - ".github/workflows/**"
+
+jobs:
+    process-hdr:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.21"
+                  check-latest: true
+
+            - name: Run tests
+              run: go test -v ./...
+
+            - name: Create examples directory
+              run: |
+                  mkdir -p examples/input
+                  mkdir -p examples/output
+
+            - name: Download sample images
+              run: |
+                  # Download sample bracket exposure images from a reliable source
+                  # Using placeholder URLs - replace with actual image URLs
+                  curl -o examples/input/low.jpg https://www.easyhdr.com/examples/pecos-river/pecos-river1.jpg
+                  curl -o examples/input/mid.jpg https://www.easyhdr.com/examples/pecos-river/pecos-river2.jpg
+                  curl -o examples/input/high.jpg https://www.easyhdr.com/examples/pecos-river/pecos-river3.jpg
+
+            - name: Run HDR processor
+              run: |
+                  go run ./cmd/hdarrrr/main.go \
+                    -low examples/input/low.jpg \
+                    -mid examples/input/mid.jpg \
+                    -high examples/input/high.jpg \
+                    -output examples/output/hdr_result.jpg
+
+            - name: Create HDR output branch
+              run: |
+                  # Get PR number
+                  PR_NUMBER=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
+
+                  # Create or switch to HDR output branch
+                  git checkout -b hdr-output-pr-$PR_NUMBER || git checkout hdr-output-pr-$PR_NUMBER
+                  git pull origin hdr-output-pr-$PR_NUMBER || true
+
+                  # Configure git
+                  git config --local user.email "github-actions[bot]@users.noreply.github.com"
+                  git config --local user.name "github-actions[bot]"
+
+                  # Add timestamp to commit message for uniqueness
+                  TIMESTAMP=$(date +%s)
+
+                  # Commit and push to HDR output branch
+                  git add examples/output/hdr_result.jpg
+                  git commit -m "Update HDR processed image for PR #${PR_NUMBER} (${TIMESTAMP})" || echo "No changes to commit"
+                  git push origin hdr-output-pr-$PR_NUMBER --force
+
+            - name: Find Comment
+              uses: peter-evans/find-comment@v2
+              id: fc
+              with:
+                  issue-number: ${{ github.event.pull_request.number }}
+                  comment-author: "github-actions[bot]"
+                  body-includes: "HDR Processing Result"
+
+            - name: Create or Update Comment
+              uses: peter-evans/create-or-update-comment@v3
+              with:
+                  comment-id: ${{ steps.fc.outputs.comment-id }}
+                  issue-number: ${{ github.event.pull_request.number }}
+                  body: |
+                      ## HDR Processing Result
+
+                      Latest HDR image processed at: ${{ steps.date.outputs.date }}
+
+                      ![HDR Result](https://raw.githubusercontent.com/${{ github.repository }}/hdr-output-pr-${{ github.event.pull_request.number }}/examples/output/hdr_result.jpg)
+
+                      This image was automatically generated from the latest code changes in this PR.
+                  edit-mode: replace

@@ -1,3 +1,5 @@
+// File: cmd/hdarrrr/main.go
+
 package main
 
 import (
@@ -14,14 +16,12 @@ import (
 )
 
 func main() {
-
-	// Define command line flags
-	img1Path := flag.String("low", "", "Path to low exposure image (required)")
-	img2Path := flag.String("mid", "", "Path to mid exposure image (required)")
-	img3Path := flag.String("high", "", "Path to high exposure image (required)")
-	outputPath := flag.String("output", "hdr_output.jpg", "Path for output HDR image")
-	toneMapping := flag.String("tone-mapping", "reinhard", "Tone mapping algorithm to use (reinhard, drago)")
-
+    // Define command line flags
+    img1Path := flag.String("low", "", "Path to low exposure image (required)")
+    img2Path := flag.String("mid", "", "Path to mid exposure image (required)")
+    img3Path := flag.String("high", "", "Path to high exposure image (required)")
+    outputPath := flag.String("output", "hdr_output.jpg", "Path for output HDR image")
+    toneMapping := flag.String("tone-mapping", "reinhard", "Tone mapping algorithm to use (reinhard, drago)")
 
     // Parse command line arguments
     flag.Parse()
@@ -48,32 +48,21 @@ func main() {
         log.Fatal("Error loading images:", err)
     }
 
-      // Validate image properties
-    if err := validateImageProperties(images); err != nil {
-        log.Fatal("Error validating image properties:", err)
+    // Select tone mapping algorithm
+    var toneMapper processor.ToneMapper
+    switch *toneMapping {
+    case "reinhard":
+        toneMapper = processor.NewReinhardToneMapper()
+    case "drago":
+        toneMapper = processor.NewDragoToneMapper(1.0, 0.85)
+    default:
+        log.Fatalf("Error: Unsupported tone mapping algorithm %s. Supported algorithms: reinhard, drago", *toneMapping)
     }
 
-	// Select tone mapping algorithm
-	var toneMapper processor.ToneMapper
-	switch *toneMapping {
-	case "reinhard":
-		toneMapper = processor.NewReinhardToneMapper()
-	case "drago":
-		toneMapper = processor.NewDragoToneMapper(100.0, 0.85)
-	default:
-		log.Fatalf("Error: Unsupported tone mapping algorithm %s. Supported algorithms: reinhard, drago", *toneMapping)
-	}
-
-	// Process HDR
-	hdrProcessor := processor.NewHDRProcessor(toneMapper)
-	output, err := hdrProcessor.Process(images)
-	if err != nil {
-		log.Fatal("Error processing HDR:", err)
-	}
-
-
+    // Create HDR processor with selected tone mapper
+    hdrProcessor := processor.NewHDRProcessor(toneMapper)
+    
     // Process HDR
-    hdrProcessor := processor.NewHDRProcessor()
     output, err := hdrProcessor.Process(images)
     if err != nil {
         log.Fatal("Error processing HDR:", err)
@@ -94,16 +83,24 @@ func main() {
     fmt.Printf("HDR image successfully saved to %s\n", *outputPath)
 }
 
+// validateImageProperties checks if all images have the same dimensions and color model
 func validateImageProperties(images []image.Image) error {
     if len(images) < 2 {
         return fmt.Errorf("at least two images are required for validation")
     }
 
-    baseProps := imaging.GetImageProperties(images[0], filepath.Ext(images[0].Bounds().String()))
+    baseImg := images[0]
+    baseBounds := baseImg.Bounds()
+    baseColorModel := baseImg.ColorModel()
+
     for i, img := range images[1:] {
-        props := imaging.GetImageProperties(img, filepath.Ext(img.Bounds().String()))
-        if !imaging.ValidateImageProperties(baseProps, props) {
-            return fmt.Errorf("image %d does not match the properties of the first image", i+2)
+        bounds := img.Bounds()
+        if bounds.Dx() != baseBounds.Dx() || bounds.Dy() != baseBounds.Dy() {
+            return fmt.Errorf("image %d has different dimensions than the first image", i+2)
+        }
+
+        if img.ColorModel() != baseColorModel {
+            return fmt.Errorf("image %d has a different color model than the first image", i+2)
         }
     }
 

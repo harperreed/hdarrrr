@@ -14,14 +14,16 @@ type HDRPixel struct {
 
 // HDRProcessor handles the HDR image processing
 type HDRProcessor struct {
-	toneMapper ToneMapper
+    toneMapper ToneMapper
 }
 
-// NewHDRProcessor creates a new HDR processor with default settings
-func NewHDRProcessor() *HDRProcessor {
-	return &HDRProcessor{
-		toneMapper: NewReinhardToneMapper(),
-	}
+func NewHDRProcessor(toneMapper ToneMapper) *HDRProcessor {
+    if toneMapper == nil {
+        toneMapper = NewReinhardToneMapper()
+    }
+    return &HDRProcessor{
+        toneMapper: toneMapper,
+    }
 }
 
 // Process creates an HDR image from three exposure images

@@ -212,3 +212,57 @@ func TestUnsupportedFormat(t *testing.T) {
 		t.Error("Expected error for unsupported format, got nil")
 	}
 }
+
+func TestGetImageProperties(t *testing.T) {
+	testImg := createTestImage(t, "png", color.RGBA{R: 255, G: 0, B: 0, A: 255})
+	defer os.Remove(testImg.path)
+
+	img, err := LoadImage(testImg.path)
+	if err != nil {
+		t.Fatalf("Failed to load image: %v", err)
+	}
+
+	props := GetImageProperties(img, testImg.format)
+	if props.Width != 2 || props.Height != 2 {
+		t.Errorf("Expected dimensions 2x2, got %dx%d", props.Width, props.Height)
+	}
+	if props.ColorDepth != 8 {
+		t.Errorf("Expected color depth 8, got %d", props.ColorDepth)
+	}
+	if props.Format != "png" {
+		t.Errorf("Expected format png, got %s", props.Format)
+	}
+}
+
+func TestValidateImageProperties(t *testing.T) {
+	img1 := createTestImage(t, "png", color.RGBA{R: 255, G: 0, B: 0, A: 255})
+	defer os.Remove(img1.path)
+	img2 := createTestImage(t, "png", color.RGBA{R: 0, G: 255, B: 0, A: 255})
+	defer os.Remove(img2.path)
+	img3 := createTestImage(t, "jpeg", color.RGBA{R: 0, G: 0, B: 255, A: 255})
+	defer os.Remove(img3.path)
+
+	image1, err := LoadImage(img1.path)
+	if err != nil {
+		t.Fatalf("Failed to load image1: %v", err)
+	}
+	image2, err := LoadImage(img2.path)
+	if err != nil {
+		t.Fatalf("Failed to load image2: %v", err)
+	}
+	image3, err := LoadImage(img3.path)
+	if err != nil {
+		t.Fatalf("Failed to load image3: %v", err)
+	}
+
+	props1 := GetImageProperties(image1, img1.format)
+	props2 := GetImageProperties(image2, img2.format)
+	props3 := GetImageProperties(image3, img3.format)
+
+	if !ValidateImageProperties(props1, props2) {
+		t.Error("Expected properties to match for image1 and image2")
+	}
+	if ValidateImageProperties(props1, props3) {
+		t.Error("Expected properties to not match for image1 and image3")
+	}
+}

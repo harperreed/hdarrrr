@@ -41,6 +41,24 @@ func TestHDRProcessor_Process(t *testing.T) {
 			expectError: true,
 		},
 		{
+			name: "Different color depth images",
+			images: []image.Image{
+				createTestImage(2, 2, 128),
+				createTestImage(2, 2, 128),
+				createTestImage(2, 2, 128),
+			},
+			expectError: true,
+		},
+		{
+			name: "Different format images",
+			images: []image.Image{
+				createTestImage(2, 2, 128),
+				createTestImage(2, 2, 128),
+				createTestImage(2, 2, 128),
+			},
+			expectError: true,
+		},
+		{
 			name: "Wrong number of images",
 			images: []image.Image{
 				createTestImage(2, 2, 128),

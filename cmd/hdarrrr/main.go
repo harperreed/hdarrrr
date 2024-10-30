@@ -44,6 +44,11 @@ func main() {
 		log.Fatal("Error loading images:", err)
 	}
 
+	// Validate image properties
+	if err := validateImageProperties(images); err != nil {
+		log.Fatal("Error validating image properties:", err)
+	}
+
 	// Process HDR
 	hdrProcessor := processor.NewHDRProcessor()
 	output, err := hdrProcessor.Process(images)
@@ -64,4 +69,20 @@ func main() {
 	}
 
 	fmt.Printf("HDR image successfully saved to %s\n", *outputPath)
+}
+
+func validateImageProperties(images []image.Image) error {
+	if len(images) < 2 {
+		return fmt.Errorf("at least two images are required for validation")
+	}
+
+	baseProps := imaging.GetImageProperties(images[0])
+	for i, img := range images[1:] {
+		props := imaging.GetImageProperties(img)
+		if !imaging.ValidateImageProperties(baseProps, props) {
+			return fmt.Errorf("image %d does not match the properties of the first image", i+2)
+		}
+	}
+
+	return nil
 }

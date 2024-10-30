@@ -4,6 +4,7 @@ import (
 	"errors"
 	"image"
 	"image/color"
+	"github.com/harperreed/hdarrrr/pkg/imaging"
 )
 
 // HDRPixel represents a pixel with high dynamic range values
@@ -29,16 +30,13 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 		return nil, errors.New("exactly three images are required")
 	}
 
-	// Verify image dimensions match
-	bounds := images[0].Bounds()
-	for _, img := range images[1:] {
-		if img.Bounds() != bounds {
-			return nil, errors.New("all images must have the same dimensions")
-		}
+	// Validate image properties
+	if err := validateImageProperties(images); err != nil {
+		return nil, err
 	}
 
-	width := bounds.Max.X
-	height := bounds.Max.Y
+	width := images[0].Bounds().Max.X
+	height := images[0].Bounds().Max.Y
 
 	// Create HDR image
 	hdrImage := make([][]HDRPixel, height)
@@ -62,7 +60,7 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 	}
 
 	// Tone map HDR image to LDR
-	output := image.NewRGBA(bounds)
+	output := image.NewRGBA(images[0].Bounds())
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			pixel := hdrImage[y][x]
@@ -100,4 +98,20 @@ func (p *HDRProcessor) weight(v float64) float64 {
 		return 0
 	}
 	return 1 - (2*v - 1)*(2*v - 1)
+}
+
+func validateImageProperties(images []image.Image) error {
+	if len(images) < 2 {
+		return errors.New("at least two images are required for validation")
+	}
+
+	baseProps := imaging.GetImageProperties(images[0])
+	for i, img := range images[1:] {
+		props := imaging.GetImageProperties(img)
+		if !imaging.ValidateImageProperties(baseProps, props) {
+			return errors.New("image " + string(i+2) + " does not match the properties of the first image")
+		}
+	}
+
+	return nil
 }

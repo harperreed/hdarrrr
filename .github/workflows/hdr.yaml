@@ -1,4 +1,4 @@
-name: HDR Image Processing
+name: HDR Image Processing (fixed)
 
 on:
     pull_request:

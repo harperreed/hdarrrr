@@ -1,108 +1,193 @@
 name: HDR Image Processing
+
 on:
-  pull_request:
-    types: [opened, synchronize]
-    paths:
-      - '**.go'
-      - '.github/workflows/**'
+    pull_request:
+        paths:
+            - "**.go"
+            - "go.mod"
+            - "go.sum"
+            - ".github/workflows/hdr.yml"
+
+# Environment variables for reusability and easier maintenance
+env:
+    GO_VERSION: "1.21"
+    INPUT_DIR: "examples/input"
+    OUTPUT_DIR: "examples/output"
+    OUTPUT_FILE: "hdr_result.jpg"
+    TEST_IMAGES:
+        low: "https://www.easyhdr.com/examples/pond/pondlow.jpg"
+        mid: "https://www.easyhdr.com/examples/pond/pondmid.jpg"
+        high: "https://www.easyhdr.com/examples/pond/pondhigh.jpg"
 
 jobs:
-  process-hdr:
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
+    process-hdr:
+        runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v4
+        # Timeout after 10 minutes to prevent hung jobs
+        timeout-minutes: 10
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-          check-latest: true
+        permissions:
+            contents: read
+            pull-requests: write
 
-      - name: Run tests
-        run: go test -v ./...
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 1 # Shallow clone for faster checkout
 
-      - name: Process HDR Image
-        id: process-hdr
-        run: |
-          # Create directories
-          mkdir -p examples/{input,output}
-          
-          # Download sample images (replace with your actual test images)
-          # Adding error handling and verification
-          for img in low mid high; do
-            if ! curl -sSL -o "examples/input/$img.jpg" "https://www.easyhdr.com/examples/pond/pond$img.jpg"; then
-              echo "::error::Failed to download $img exposure image"
-              exit 1
-            fi
-          done
-          
-          # Verify images exist and are valid JPEG files
-          for img in examples/input/*.jpg; do
-            if ! file "$img" | grep -i "JPEG image data" > /dev/null; then
-              echo "::error::Invalid or missing JPEG file: $img"
-              exit 1
-            fi
-          done
-          
-          # Process HDR image with error handling
-          if ! go run ./cmd/hdarrrr/main.go \
-            -low examples/input/low.jpg \
-            -mid examples/input/mid.jpg \
-            -high examples/input/high.jpg \
-            -output examples/output/hdr_result.jpg; then
-            echo "::error::HDR processing failed"
-            exit 1
-          fi
-          
-          # Verify output was created
-          if [ ! -f examples/output/hdr_result.jpg ]; then
-            echo "::error::Output file was not created"
-            exit 1
-          fi
-          
-          # Get file size for verification
-          echo "size=$(stat -f%z examples/output/hdr_result.jpg)" >> $GITHUB_OUTPUT
+            - name: Set up Go
+              id: go-setup
+              uses: actions/setup-go@v5
+              with:
+                  go-version: ${{ env.GO_VERSION }}
+                  check-latest: true
+                  cache: true # Enable Go module caching
 
-      - name: Upload to PR
-        id: upload
-        run: |
-          # Encode image to base64 and create a data URL
-          MIME_TYPE="image/jpeg"
-          BASE64_IMAGE=$(base64 -w 0 examples/output/hdr_result.jpg)
-          DATA_URL="data:${MIME_TYPE};base64,${BASE64_IMAGE}"
-          
-          # Save to GitHub Actions environment
-          echo "image_data=${DATA_URL}" >> $GITHUB_OUTPUT
+            - name: Verify Go installation
+              run: |
+                  go version
+                  if [ $? -ne 0 ]; then
+                    echo "::error::Go installation failed"
+                    exit 1
+                  fi
 
-      - name: Find Existing Comment
-        uses: peter-evans/find-comment@v2
-        id: fc
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
-          body-includes: "HDR Processing Result"
+            - name: Run tests
+              id: tests
+              run: |
+                  go test -v -race -timeout 5m ./...
+              continue-on-error: false
 
-      - name: Post or Update Comment
-        uses: peter-evans/create-or-update-comment@v3
-        with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ## HDR Processing Result
-            
-            Generated at: ${{ format('2024-01-02T15:04:05Z' | date('YYYY-MM-DD HH:mm:ss')) }} UTC
-            File size: ${{ steps.process-hdr.outputs.size }} bytes
-            
-            ![HDR Result](${{ steps.upload.outputs.image_data }})
-            
-            <details>
-            <summary>Processing Details</summary>
-            
-            - Workflow Run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            - Commit: ${{ github.sha }}
-            - Branch: ${{ github.head_ref }}
-            </details>
-          edit-mode: replace
+            - name: Setup directories
+              id: setup-dirs
+              run: |
+                  mkdir -p "${{ env.INPUT_DIR }}" "${{ env.OUTPUT_DIR }}"
+                  if [ ! -d "${{ env.INPUT_DIR }}" ] || [ ! -d "${{ env.OUTPUT_DIR }}" ]; then
+                    echo "::error::Failed to create required directories"
+                    exit 1
+                  fi
+
+            - name: Download test images
+              id: download-images
+              run: |
+                  download_image() {
+                    local exposure=$1
+                    local url=$2
+                    local output="${{ env.INPUT_DIR }}/${exposure}.jpg"
+                    
+                    echo "Downloading ${exposure} exposure image..."
+                    if ! curl -sSL --retry 3 --retry-delay 2 -f -o "$output" "$url"; then
+                      echo "::error::Failed to download ${exposure} exposure image from ${url}"
+                      return 1
+                    fi
+                    
+                    if ! file "$output" | grep -qi "JPEG image data"; then
+                      echo "::error::Downloaded file is not a valid JPEG: ${output}"
+                      return 1
+                    fi
+                    
+                    echo "Successfully downloaded and verified ${exposure} exposure image"
+                    return 0
+                  }
+
+                  # Download all images in parallel with error handling
+                  pids=()
+                  for exposure in "low" "mid" "high"; do
+                    url="${{ env.TEST_IMAGES[exposure] }}"
+                    download_image "$exposure" "$url" &
+                    pids+=($!)
+                  done
+
+                  # Wait for all downloads and check results
+                  for pid in "${pids[@]}"; do
+                    if ! wait "$pid"; then
+                      echo "::error::One or more image downloads failed"
+                      exit 1
+                    fi
+                  done
+
+            - name: Process HDR image
+              id: process-hdr
+              run: |
+                  echo "Starting HDR processing..."
+
+                  # Process with timeout and error handling
+                  timeout 300s go run ./cmd/hdarrrr/main.go \
+                    -low "${{ env.INPUT_DIR }}/low.jpg" \
+                    -mid "${{ env.INPUT_DIR }}/mid.jpg" \
+                    -high "${{ env.INPUT_DIR }}/high.jpg" \
+                    -output "${{ env.OUTPUT_DIR }}/${{ env.OUTPUT_FILE }}"
+
+                  if [ $? -ne 0 ]; then
+                    echo "::error::HDR processing failed or timed out"
+                    exit 1
+                  fi
+
+                  # Verify output
+                  output_file="${{ env.OUTPUT_DIR }}/${{ env.OUTPUT_FILE }}"
+                  if [ ! -f "$output_file" ]; then
+                    echo "::error::Output file was not created: $output_file"
+                    exit 1
+                  fi
+
+                  if ! file "$output_file" | grep -qi "JPEG image data"; then
+                    echo "::error::Output is not a valid JPEG file"
+                    exit 1
+                  fi
+
+                  # Get file size using Linux stat command
+                  size=$(stat -c%s "$output_file")
+                  echo "size=$size" >> $GITHUB_OUTPUT
+                  echo "HDR processing completed successfully. Output size: $size bytes"
+
+            - name: Prepare image for comment
+              id: prepare-image
+              run: |
+                  output_file="${{ env.OUTPUT_DIR }}/${{ env.OUTPUT_FILE }}"
+
+                  # Compress image if it's too large for GitHub comment
+                  max_size=$((1024 * 1024))  # 1MB limit
+                  current_size=$(stat -c%s "$output_file")
+
+                  if [ "$current_size" -gt "$max_size" ]; then
+                    echo "Image too large for direct embedding, compressing..."
+                    convert "$output_file" -quality 80 -resize "1200>" "$output_file.compressed.jpg"
+                    output_file="$output_file.compressed.jpg"
+                  fi
+
+                  # Create data URL
+                  mime_type="image/jpeg"
+                  base64_image=$(base64 -w 0 "$output_file")
+                  echo "image_data=data:${mime_type};base64,${base64_image}" >> $GITHUB_OUTPUT
+
+            - name: Find existing comment
+              uses: peter-evans/find-comment@v2
+              id: find-comment
+              with:
+                  issue-number: ${{ github.event.pull_request.number }}
+                  comment-author: "github-actions[bot]"
+                  body-includes: "HDR Processing Result"
+
+            - name: Update PR with result
+              uses: peter-evans/create-or-update-comment@v3
+              with:
+                  comment-id: ${{ steps.find-comment.outputs.comment-id }}
+                  issue-number: ${{ github.event.pull_request.number }}
+                  body: |
+                      ## HDR Processing Result
+
+                      Generated at: ${{ github.event.pull_request.updated_at }}
+                      File size: ${{ steps.process-hdr.outputs.size }} bytes
+
+                      ![HDR Result](${{ steps.prepare-image.outputs.image_data }})
+
+                      <details>
+                      <summary>Processing Details</summary>
+
+                      - Workflow Run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+                      - Commit: ${{ github.sha }}
+                      - Branch: ${{ github.head_ref }}
+                      - Go Version: ${{ steps.go-setup.outputs.go-version }}
+                      - Duration: ${{ job.duration }}
+                      </details>
+                  edit-mode: replace

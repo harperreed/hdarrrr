@@ -1,95 +1,92 @@
-
-
-
 name: HDR Image Processing
 on:
-  pull_request:
-    types: [opened, synchronize]
-    paths:
-      - '**.go'
-      - '.github/workflows/**'
+    pull_request:
+        types: [opened, synchronize]
+        paths:
+            - "**.go"
+            - ".github/workflows/**"
 
 jobs:
-  process-hdr:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
+    process-hdr:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: write
 
-    steps:
-      - uses: actions/checkout@v4
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-          check-latest: true
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.21"
+                  check-latest: true
 
-      - name: Run tests
-        run: go test -v ./...
+            - name: Run tests
+              run: go test -v ./...
 
-      - name: Create examples directory
-        run: |
-          mkdir -p examples/input
-          mkdir -p examples/output
+            - name: Create examples directory
+              run: |
+                  mkdir -p examples/input
+                  mkdir -p examples/output
 
-      - name: Download sample images
-        run: |
-            # Download sample bracket exposure images from a reliable source
-            # Using placeholder URLs - replace with actual image URLs
-            curl -o examples/input/low.jpg https://www.easyhdr.com/examples/pecos-river/pecos-river1.jpg
-            curl -o examples/input/mid.jpg https://www.easyhdr.com/examples/pecos-river/pecos-river2.jpg
-            curl -o examples/input/high.jpg https://www.easyhdr.com/examples/pecos-river/pecos-river3.jpg
+            - name: Download sample images
+              run: |
+                  # Download sample bracket exposure images from a reliable source
+                  # Using placeholder URLs - replace with actual image URLs
+                  curl -o examples/input/low.jpg https://www.easyhdr.com/examples/pecos-river/pecos-river1.jpg
+                  curl -o examples/input/mid.jpg https://www.easyhdr.com/examples/pecos-river/pecos-river2.jpg
+                  curl -o examples/input/high.jpg https://www.easyhdr.com/examples/pecos-river/pecos-river3.jpg
 
-      - name: Run HDR processor
-        run: |
-          go run ./cmd/hdarrrr/main.go \
-            -low examples/input/low.jpg \
-            -mid examples/input/mid.jpg \
-            -high examples/input/high.jpg \
-            -output examples/output/hdr_result.jpg
+            - name: Run HDR processor
+              run: |
+                  go run ./cmd/hdarrrr/main.go \
+                    -low examples/input/low.jpg \
+                    -mid examples/input/mid.jpg \
+                    -high examples/input/high.jpg \
+                    -output examples/output/hdr_result.jpg
 
-      - name: Upload HDR image as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: hdr-result
-          path: examples/output/hdr_result.jpg
-          retention-days: 90
+            - name: Upload HDR image as artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: hdr-result
+                  path: examples/output/hdr_result.jpg
+                  retention-days: 90
 
-      - name: Upload to PR
-        run: |
-          # Upload the image using GitHub's API
-          RESPONSE=$(curl -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @examples/output/hdr_result.jpg \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/attachments")
-          
-          # Extract the URL from the response
-          IMAGE_URL=$(echo $RESPONSE | jq -r .url)
-          echo "IMAGE_URL=${IMAGE_URL}" >> $GITHUB_ENV
+            - name: Upload to PR
+              run: |
+                  # Upload the image using GitHub's API
+                  RESPONSE=$(curl -X POST \
+                    -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                    -H "Content-Type: application/octet-stream" \
+                    --data-binary @examples/output/hdr_result.jpg \
+                    "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/attachments")
 
-      - name: Find Comment
-        uses: peter-evans/find-comment@v2
-        id: fc
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
-          body-includes: "HDR Processing Result"
+                  # Extract the URL from the response
+                  IMAGE_URL=$(echo $RESPONSE | jq -r .url)
+                  echo "IMAGE_URL=${IMAGE_URL}" >> $GITHUB_ENV
 
-      - name: Create or Update Comment
-        uses: peter-evans/create-or-update-comment@v3
-        with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ## HDR Processing Result
-            
-            Latest HDR image processed at: ${{ steps.date.outputs.date }}
-            
-            ![HDR Result](${{ env.IMAGE_URL }})
-            
-            This image was automatically generated from the latest code changes in this PR.
-            
-            You can also download the image from the workflow artifacts.
-          edit-mode: replace
+            - name: Find Comment
+              uses: peter-evans/find-comment@v2
+              id: fc
+              with:
+                  issue-number: ${{ github.event.pull_request.number }}
+                  comment-author: "github-actions[bot]"
+                  body-includes: "HDR Processing Result"
+
+            - name: Create or Update Comment
+              uses: peter-evans/create-or-update-comment@v3
+              with:
+                  comment-id: ${{ steps.fc.outputs.comment-id }}
+                  issue-number: ${{ github.event.pull_request.number }}
+                  body: |
+                      ## HDR Processing Result
+
+                      Latest HDR image processed at: ${{ steps.date.outputs.date }}
+
+                      ![HDR Result](${{ env.IMAGE_URL }})
+
+                      This image was automatically generated from the latest code changes in this PR.
+
+                      You can also download the image from the workflow artifacts.
+                  edit-mode: replace

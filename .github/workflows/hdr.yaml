@@ -11,16 +11,14 @@ env:
     INPUT_DIR: "examples/input"
     OUTPUT_DIR: "examples/output"
     OUTPUT_FILE: "hdr_result.jpg"
-    TEST_IMAGES:
-        low: "https://www.easyhdr.com/examples/pond/pondlow.jpg"
-        mid: "https://www.easyhdr.com/examples/pond/pondmid.jpg"
-        high: "https://www.easyhdr.com/examples/pond/pondhigh.jpg"
+    # Flat environment variables instead of nested map
+    TEST_IMAGE_LOW: "https://www.easyhdr.com/examples/pond/pondlow.jpg"
+    TEST_IMAGE_MID: "https://www.easyhdr.com/examples/pond/pondmid.jpg"
+    TEST_IMAGE_HIGH: "https://www.easyhdr.com/examples/pond/pondhigh.jpg"
 
 jobs:
     process-hdr:
         runs-on: ubuntu-latest
-
-        # Timeout after 10 minutes to prevent hung jobs
         timeout-minutes: 10
 
         permissions:
@@ -31,7 +29,7 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
-                  fetch-depth: 1 # Shallow clone for faster checkout
+                  fetch-depth: 1
 
             - name: Set up Go
               id: go-setup
@@ -39,7 +37,7 @@ jobs:
               with:
                   go-version: ${{ env.GO_VERSION }}
                   check-latest: true
-                  cache: true # Enable Go module caching
+                  cache: true
 
             - name: Verify Go installation
               run: |
@@ -87,21 +85,26 @@ jobs:
                     return 0
                   }
 
-                  # Download all images in parallel with error handling
-                  pids=()
-                  for exposure in "low" "mid" "high"; do
-                    url="${{ env.TEST_IMAGES[exposure] }}"
-                    download_image "$exposure" "$url" &
-                    pids+=($!)
-                  done
+                  # Download images using the flat environment variables
+                  download_image "low" "${{ env.TEST_IMAGE_LOW }}" &
+                  pid1=$!
+                  download_image "mid" "${{ env.TEST_IMAGE_MID }}" &
+                  pid2=$!
+                  download_image "high" "${{ env.TEST_IMAGE_HIGH }}" &
+                  pid3=$!
 
                   # Wait for all downloads and check results
-                  for pid in "${pids[@]}"; do
+                  for pid in $pid1 $pid2 $pid3; do
                     if ! wait "$pid"; then
                       echo "::error::One or more image downloads failed"
                       exit 1
                     fi
                   done
+
+            - name: Install ImageMagick
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y imagemagick
 
             - name: Process HDR image
               id: process-hdr

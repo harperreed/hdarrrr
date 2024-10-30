@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/harperreed/hdrmaker/internal/processor"
-	"github.com/harperreed/hdrmaker/pkg/imaging"
+	"github.com/harperreed/hdarrrr/internal/processor"
+	"github.com/harperreed/hdarrrr/pkg/imaging"
 )
 
 func main() {

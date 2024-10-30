@@ -5,16 +5,14 @@ on:
         branches:
             - "**"
 
-# Environment variables for reusability and easier maintenance
 env:
     GO_VERSION: "1.21"
     INPUT_DIR: "examples/input"
     OUTPUT_DIR: "examples/output"
     OUTPUT_FILE: "hdr_result.jpg"
-    # Flat environment variables instead of nested map
-    TEST_IMAGE_LOW: "https://www.easyhdr.com/examples/pond/pond2.jpg"
+    TEST_IMAGE_LOW: "https://www.easyhdr.com/examples/pond/pond1.jpg"
     TEST_IMAGE_MID: "https://www.easyhdr.com/examples/pond/pond3.jpg"
-    TEST_IMAGE_HIGH: "https://www.easyhdr.com/examples/pond/pond1.jpg"
+    TEST_IMAGE_HIGH: "https://www.easyhdr.com/examples/pond/pond2.jpg"
 
 jobs:
     process-hdr:
@@ -24,6 +22,7 @@ jobs:
         permissions:
             contents: read
             pull-requests: write
+            actions: write # Needed for artifact upload
 
         steps:
             - name: Checkout repository
@@ -85,7 +84,6 @@ jobs:
                     return 0
                   }
 
-                  # Download images using the flat environment variables
                   download_image "low" "${{ env.TEST_IMAGE_LOW }}" &
                   pid1=$!
                   download_image "mid" "${{ env.TEST_IMAGE_MID }}" &
@@ -93,7 +91,6 @@ jobs:
                   download_image "high" "${{ env.TEST_IMAGE_HIGH }}" &
                   pid3=$!
 
-                  # Wait for all downloads and check results
                   for pid in $pid1 $pid2 $pid3; do
                     if ! wait "$pid"; then
                       echo "::error::One or more image downloads failed"
@@ -111,7 +108,6 @@ jobs:
               run: |
                   echo "Starting HDR processing..."
 
-                  # Process with timeout and error handling
                   timeout 300s go run ./cmd/hdarrrr/main.go \
                     -low "${{ env.INPUT_DIR }}/low.jpg" \
                     -mid "${{ env.INPUT_DIR }}/mid.jpg" \
@@ -123,7 +119,6 @@ jobs:
                     exit 1
                   fi
 
-                  # Verify output
                   output_file="${{ env.OUTPUT_DIR }}/${{ env.OUTPUT_FILE }}"
                   if [ ! -f "$output_file" ]; then
                     echo "::error::Output file was not created: $output_file"
@@ -135,30 +130,34 @@ jobs:
                     exit 1
                   fi
 
-                  # Get file size using Linux stat command
+                  # Create preview version
+                  convert "$output_file" -quality 60 -resize "800x800>" "${{ env.OUTPUT_DIR }}/preview.jpg"
+
+                  # Get file sizes
                   size=$(stat -c%s "$output_file")
+                  preview_size=$(stat -c%s "${{ env.OUTPUT_DIR }}/preview.jpg")
+
                   echo "size=$size" >> $GITHUB_OUTPUT
+                  echo "preview_size=$preview_size" >> $GITHUB_OUTPUT
                   echo "HDR processing completed successfully. Output size: $size bytes"
 
-            - name: Prepare image for comment
-              id: prepare-image
+            - name: Upload full resolution result
+              uses: actions/upload-artifact@v4
+              with:
+                  name: hdr-result-${{ github.event.pull_request.number }}
+                  path: ${{ env.OUTPUT_DIR }}/${{ env.OUTPUT_FILE }}
+                  retention-days: 7
+                  if-no-files-found: error
+
+            - name: Create preview image for comment
+              id: prepare-preview
               run: |
-                  output_file="${{ env.OUTPUT_DIR }}/${{ env.OUTPUT_FILE }}"
+                  preview_file="${{ env.OUTPUT_DIR }}/preview.jpg"
 
-                  # Compress image if it's too large for GitHub comment
-                  max_size=$((1024 * 1024))  # 1MB limit
-                  current_size=$(stat -c%s "$output_file")
-
-                  if [ "$current_size" -gt "$max_size" ]; then
-                    echo "Image too large for direct embedding, compressing..."
-                    convert "$output_file" -quality 80 -resize "1200>" "$output_file.compressed.jpg"
-                    output_file="$output_file.compressed.jpg"
-                  fi
-
-                  # Create data URL
+                  # Create data URL for preview
                   mime_type="image/jpeg"
-                  base64_image=$(base64 -w 0 "$output_file")
-                  echo "image_data=data:${mime_type};base64,${base64_image}" >> $GITHUB_OUTPUT
+                  base64_preview=$(base64 -w 0 "$preview_file")
+                  echo "preview_data=data:${mime_type};base64,${base64_preview}" >> $GITHUB_OUTPUT
 
             - name: Find existing comment
               uses: peter-evans/find-comment@v2
@@ -177,9 +176,14 @@ jobs:
                       ## HDR Processing Result
 
                       Generated at: ${{ github.event.pull_request.updated_at }}
-                      File size: ${{ steps.process-hdr.outputs.size }} bytes
 
-                      ![HDR Result](${{ steps.prepare-image.outputs.image_data }})
+                      ### Preview
+                      ![HDR Result Preview](${{ steps.prepare-preview.outputs.preview_data }})
+
+                      ### Details
+                      - Full resolution size: ${{ steps.process-hdr.outputs.size }} bytes
+                      - Preview size: ${{ steps.process-hdr.outputs.preview_size }} bytes
+                      - Full resolution image: [Download Artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
                       <details>
                       <summary>Processing Details</summary>

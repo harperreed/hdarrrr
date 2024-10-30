@@ -2,11 +2,8 @@ name: HDR Image Processing (fixed)
 
 on:
     pull_request:
-        paths:
-            - "**.go"
-            - "go.mod"
-            - "go.sum"
-            - ".github/workflows/hdr.yml"
+        branches:
+            - "**"
 
 # Environment variables for reusability and easier maintenance
 env:

@@ -48,11 +48,11 @@ jobs:
                   echo "$changelog" >> $GITHUB_OUTPUT
                   echo "EOF" >> $GITHUB_OUTPUT
             - name: Build for Windows
-              run: GOOS=windows GOARCH=amd64 go build -o image-dupes-windows-amd64.exe
+              run: GOOS=windows GOARCH=amd64 go build ./cmd/hdarrrr -o hdarrrr-windows-amd64.exe
             - name: Build for Linux
-              run: GOOS=linux GOARCH=amd64 go build -o image-dupes-linux-amd64 
+              run: GOOS=linux GOARCH=amd64 go build ./cmd/hdarrrr -o hdarrrr-linux-amd64
             - name: Build for macOS ARM64
-              run: GOOS=darwin GOARCH=arm64 go build -o image-dupes-darwin-arm64
+              run: GOOS=darwin GOARCH=arm64 go build ./cmd/hdarrrr -o hdarrrr-darwin-arm64
             - name: Create Release
               id: create_release
               uses: actions/create-release@v1
@@ -72,8 +72,8 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
                   upload_url: ${{ steps.create_release.outputs.upload_url }}
-                  asset_path: ./image-dupes-windows-amd64.exe
-                  asset_name: image-dupes-windows-amd64.exe
+                  asset_path: ./hdarrrr-windows-amd64.exe
+                  asset_name: hdarrrr-windows-amd64.exe
                   asset_content_type: application/octet-stream
             - name: Upload Linux Release Asset
               uses: actions/upload-release-asset@v1
@@ -81,8 +81,8 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
                   upload_url: ${{ steps.create_release.outputs.upload_url }}
-                  asset_path: ./image-dupes-linux-amd64
-                  asset_name: image-dupes-linux-amd64
+                  asset_path: ./hdarrrr-linux-amd64
+                  asset_name: hdarrrr-linux-amd64
                   asset_content_type: application/octet-stream
             - name: Upload macOS ARM64 Release Asset
               uses: actions/upload-release-asset@v1
@@ -90,6 +90,6 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
                   upload_url: ${{ steps.create_release.outputs.upload_url }}
-                  asset_path: ./image-dupes-darwin-arm64
-                  asset_name: image-dupes-darwin-arm64
+                  asset_path: ./hdarrrr-darwin-arm64
+                  asset_name: hdarrrr-darwin-arm64
                   asset_content_type: application/octet-stream

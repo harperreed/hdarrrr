@@ -30,15 +30,27 @@ func TestHDRProcessor_Process(t *testing.T) {
 	tests := []struct {
 		name        string
 		images      []image.Image
+		method      string
 		expectError bool
 	}{
 		{
-			name: "Valid three images",
+			name: "Valid three images with tone-mapping",
 			images: []image.Image{
 				createTestImage(2, 2, 50),  // Dark exposure
 				createTestImage(2, 2, 128), // Mid exposure
 				createTestImage(2, 2, 200), // Bright exposure
 			},
+			method:      "tone-mapping",
+			expectError: false,
+		},
+		{
+			name: "Valid three images with exposure-fusion",
+			images: []image.Image{
+				createTestImage(2, 2, 50),  // Dark exposure
+				createTestImage(2, 2, 128), // Mid exposure
+				createTestImage(2, 2, 200), // Bright exposure
+			},
+			method:      "exposure-fusion",
 			expectError: false,
 		},
 		{
@@ -48,6 +60,7 @@ func TestHDRProcessor_Process(t *testing.T) {
 				createTestImage(3, 3, 128),
 				createTestImage(2, 2, 128),
 			},
+			method:      "tone-mapping",
 			expectError: true,
 		},
 		{
@@ -57,6 +70,7 @@ func TestHDRProcessor_Process(t *testing.T) {
 				createTestGray16Image(2, 2, 32768),
 				createTestImage(2, 2, 128),
 			},
+			method:      "tone-mapping",
 			expectError: true,
 		},
 		{
@@ -65,6 +79,7 @@ func TestHDRProcessor_Process(t *testing.T) {
 				createTestImage(2, 2, 128),
 				createTestImage(2, 2, 128),
 			},
+			method:      "tone-mapping",
 			expectError: true,
 		},
 	}
@@ -72,7 +87,7 @@ func TestHDRProcessor_Process(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			processor := NewHDRProcessor()
-			result, err := processor.Process(tt.images)
+			result, err := processor.Process(tt.images, tt.method)
 
 			if tt.expectError {
 				if err == nil {

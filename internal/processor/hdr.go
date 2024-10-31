@@ -27,7 +27,7 @@ func NewHDRProcessor() *HDRProcessor {
 }
 
 // Process creates an HDR image from three exposure images
-func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
+func (p *HDRProcessor) Process(images []image.Image, method string) (image.Image, error) {
 	if len(images) != 3 {
 		return nil, errors.New("exactly three images are required")
 	}
@@ -43,8 +43,19 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 		return nil, fmt.Errorf("image alignment failed: %v", err)
 	}
 
-	width := alignedImages[0].Bounds().Max.X
-	height := alignedImages[0].Bounds().Max.Y
+	switch method {
+	case "tone-mapping":
+		return p.processToneMapping(alignedImages)
+	case "exposure-fusion":
+		return p.processExposureFusion(alignedImages)
+	default:
+		return nil, fmt.Errorf("unsupported HDR method: %s", method)
+	}
+}
+
+func (p *HDRProcessor) processToneMapping(images []image.Image) (image.Image, error) {
+	width := images[0].Bounds().Max.X
+	height := images[0].Bounds().Max.Y
 
 	// Create HDR image
 	hdrImage := make([][]HDRPixel, height)
@@ -55,9 +66,9 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 	// Merge exposures into HDR image
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			r1, g1, b1, _ := alignedImages[0].At(x, y).RGBA()
-			r2, g2, b2, _ := alignedImages[1].At(x, y).RGBA()
-			r3, g3, b3, _ := alignedImages[2].At(x, y).RGBA()
+			r1, g1, b1, _ := images[0].At(x, y).RGBA()
+			r2, g2, b2, _ := images[1].At(x, y).RGBA()
+			r3, g3, b3, _ := images[2].At(x, y).RGBA()
 
 			hdrImage[y][x] = HDRPixel{
 				R: p.mergeExposures(float64(r1)/65535, float64(r2)/65535, float64(r3)/65535),
@@ -68,7 +79,7 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 	}
 
 	// Tone map HDR image to LDR
-	output := image.NewRGBA(alignedImages[0].Bounds())
+	output := image.NewRGBA(images[0].Bounds())
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			pixel := hdrImage[y][x]
@@ -86,6 +97,59 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 	}
 
 	return output, nil
+}
+
+func (p *HDRProcessor) processExposureFusion(images []image.Image) (image.Image, error) {
+	width := images[0].Bounds().Max.X
+	height := images[0].Bounds().Max.Y
+
+	// Create output image
+	output := image.NewRGBA(images[0].Bounds())
+
+	// Implement the Mertens-Kautz-Van Reeth (MKVR) algorithm for exposure fusion
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			var r, g, b float64
+			var weightSum float64
+
+			for _, img := range images {
+				rVal, gVal, bVal, _ := img.At(x, y).RGBA()
+				rFloat := float64(rVal) / 65535
+				gFloat := float64(gVal) / 65535
+				bFloat := float64(bVal) / 65535
+
+				weight := p.calculateMKVRWeight(rFloat, gFloat, bFloat)
+				r += rFloat * weight
+				g += gFloat * weight
+				b += bFloat * weight
+				weightSum += weight
+			}
+
+			if weightSum > 0 {
+				r /= weightSum
+				g /= weightSum
+				b /= weightSum
+			}
+
+			output.Set(x, y, color.RGBA{
+				R: uint8(r * 255),
+				G: uint8(g * 255),
+				B: uint8(b * 255),
+				A: 255,
+			})
+		}
+	}
+
+	return output, nil
+}
+
+func (p *HDRProcessor) calculateMKVRWeight(r, g, b float64) float64 {
+	// Calculate weight based on contrast, saturation, and well-exposedness
+	contrast := (r + g + b) / 3
+	saturation := (r - g) * (r - g) + (r - b) * (r - b) + (g - b) * (g - b)
+	wellExposedness := 1 - (2*r-1)*(2*r-1) - (2*g-1)*(2*g-1) - (2*b-1)*(2*b-1)
+
+	return contrast * saturation * wellExposedness
 }
 
 func (p *HDRProcessor) mergeExposures(v1, v2, v3 float64) float64 {

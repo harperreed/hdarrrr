@@ -20,6 +20,7 @@ func main() {
 	img2Path := flag.String("mid", "", "Path to mid exposure image (required)")
 	img3Path := flag.String("high", "", "Path to high exposure image (required)")
 	outputPath := flag.String("output", "hdr_output.jpg", "Path for output HDR image")
+	hdrMethod := flag.String("method", "tone-mapping", "HDR method: tone-mapping or exposure-fusion")
 
 	// Parse command line arguments
 	flag.Parse()
@@ -59,8 +60,16 @@ func main() {
 	}
 
 	// Process HDR
-	hdrProcessor := processor.NewHDRProcessor()
-	output, err := hdrProcessor.Process(alignedImages)
+	var output image.Image
+	switch *hdrMethod {
+	case "tone-mapping":
+		hdrProcessor := processor.NewHDRProcessor()
+		output, err = hdrProcessor.Process(alignedImages)
+	case "exposure-fusion":
+		output, err = processExposureFusion(alignedImages)
+	default:
+		log.Fatalf("Error: Unsupported HDR method %s. Supported methods: tone-mapping, exposure-fusion", *hdrMethod)
+	}
 	if err != nil {
 		log.Fatal("Error processing HDR:", err)
 	}
@@ -118,4 +127,10 @@ func validateImageProperties(images []image.Image) error {
 	}
 
 	return nil
+}
+
+func processExposureFusion(images []image.Image) (image.Image, error) {
+	// Placeholder for the actual implementation of the MKVR algorithm
+	// This function should implement the Mertens-Kautz-Van Reeth (MKVR) algorithm for exposure fusion
+	return nil, fmt.Errorf("exposure fusion method not yet implemented")
 }

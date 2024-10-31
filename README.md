@@ -21,11 +21,12 @@ With a user-friendly command-line interface, this tool is simple yet effective, 
 3. **Run the Application**:
    Use the following command to execute the program, replacing the paths with your image file paths:
    ```bash
-   go run ./cmd/hdarrrr/main.go -low path/to/low_exposure.jpg -mid path/to/mid_exposure.jpg -high path/to/high_exposure.jpg -output path/to/output_image.jpg
+   go run ./cmd/hdarrrr/main.go -low path/to/low_exposure.jpg -mid path/to/mid_exposure.jpg -high path/to/high_exposure.jpg -output path/to/output_image.jpg -method <tone-mapping|exposure-fusion>
    ```
 
    - The `-low`, `-mid`, and `-high` flags are required for specifying the input images.
    - The `-output` flag allows you to specify the name of the output HDR image. If omitted, the default will be `hdr_output.jpg`.
+   - The `-method` flag allows you to select the HDR method: `tone-mapping` or `exposure-fusion`. If omitted, the default will be `tone-mapping`.
 
 4. **Check Output**:
    After running the command, you should see a message indicating that the HDR image was successfully saved at the specified location!
@@ -45,6 +46,7 @@ With a user-friendly command-line interface, this tool is simple yet effective, 
 - Image loading and saving in PNG and JPEG formats.
 - HDR image creation using a custom `HDRProcessor`.
 - Tone mapping implementation with a Reinhard tone mapper.
+- Exposure fusion implementation using the Mertens-Kautz-Van Reeth (MKVR) algorithm.
 - Unit tests to ensure functionality across various components.
 
 ### Contributing:

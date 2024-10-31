@@ -98,3 +98,101 @@ func TestValidateImageProperties(t *testing.T) {
 		})
 	}
 }
+
+func TestHDRMethodFlag(t *testing.T) {
+	tests := []struct {
+		name        string
+		method      string
+		expectError bool
+	}{
+		{
+			name:        "Valid tone-mapping method",
+			method:      "tone-mapping",
+			expectError: false,
+		},
+		{
+			name:        "Valid exposure-fusion method",
+			method:      "exposure-fusion",
+			expectError: false,
+		},
+		{
+			name:        "Invalid method",
+			method:      "invalid-method",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate command line arguments
+			args := []string{"-method", tt.method}
+			flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+			hdrMethod := flagSet.String("method", "tone-mapping", "HDR method: tone-mapping or exposure-fusion")
+			flagSet.Parse(args)
+
+			// Validate the method
+			err := validateHDRMethod(*hdrMethod)
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestProcessExposureFusion(t *testing.T) {
+	tests := []struct {
+		name        string
+		images      []image.Image
+		expectError bool
+	}{
+		{
+			name: "Valid images",
+			images: []image.Image{
+				createTestImage(100, 100, color.RGBAModel),
+				createTestImage(100, 100, color.RGBAModel),
+				createTestImage(100, 100, color.RGBAModel),
+			},
+			expectError: false,
+		},
+		{
+			name: "Different dimensions",
+			images: []image.Image{
+				createTestImage(100, 100, color.RGBAModel),
+				createTestImage(200, 200, color.RGBAModel),
+				createTestImage(100, 100, color.RGBAModel),
+			},
+			expectError: true,
+		},
+		{
+			name: "Different color models",
+			images: []image.Image{
+				createTestImage(100, 100, color.RGBAModel),
+				createTestImage(100, 100, color.GrayModel),
+				createTestImage(100, 100, color.RGBAModel),
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := processExposureFusion(tt.images)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+			}
+		})
+	}
+}

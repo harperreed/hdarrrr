@@ -9,11 +9,53 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mdouchement/hdr"
-	"github.com/mdouchement/hdr/tmo"
+	"github.com/harperreed/hdarrrr/internal/processor"
 	"github.com/harperreed/hdarrrr/pkg/align"
 	"github.com/harperreed/hdarrrr/pkg/imaging"
+	"github.com/mdouchement/hdr"
+	"github.com/mdouchement/hdr/hdrcolor"
+
+	// Import HDR codecs
+	_ "github.com/mdouchement/hdr/codec/rgbe"
+	_ "github.com/mdouchement/tiff"
 )
+
+// convertToHDR converts a regular image to HDR format
+func convertToHDR(img image.Image) hdr.Image {
+	bounds := img.Bounds()
+	hdrImg := hdr.NewRGB(bounds)
+
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			r, g, b, _ := img.At(x, y).RGBA()
+			hdrImg.Set(x, y, hdrcolor.RGB{
+				R: float64(r) / 0xffff,
+				G: float64(g) / 0xffff,
+				B: float64(b) / 0xffff,
+			})
+		}
+	}
+
+	return hdrImg
+}
+
+// convertToHDRSlice converts a slice of regular images to HDR images
+func convertToHDRSlice(images []image.Image) []hdr.Image {
+	hdrImages := make([]hdr.Image, len(images))
+	for i, img := range images {
+		hdrImages[i] = convertToHDR(img)
+	}
+	return hdrImages
+}
+
+// convertToRegularSlice converts a slice of HDR images to regular images
+func convertToRegularSlice(images []hdr.Image) []image.Image {
+	regularImages := make([]image.Image, len(images))
+	for i, img := range images {
+		regularImages[i] = img.(image.Image)
+	}
+	return regularImages
+}
 
 func main() {
 	// Define command line flags
@@ -21,6 +63,10 @@ func main() {
 	img2Path := flag.String("mid", "", "Path to mid exposure image (required)")
 	img3Path := flag.String("high", "", "Path to high exposure image (required)")
 	outputPath := flag.String("output", "hdr_output.jpg", "Path for output HDR image")
+	tonemapperFlag := flag.String("tonemapper", "reinhard05", "Tone mapping operator (reinhard05, drago03)")
+	gammaFlag := flag.Float64("gamma", 1.0, "Gamma correction value")
+	intensityFlag := flag.Float64("intensity", 1.0, "Intensity adjustment")
+	lightFlag := flag.Float64("light", 0.0, "Light adaptation (Reinhard05 only)")
 
 	// Parse command line arguments
 	flag.Parse()
@@ -34,7 +80,8 @@ func main() {
 	}
 
 	// Validate file extensions
-	for _, path := range []string{*img1Path, *img2Path, *img3Path} {
+	paths := []string{*img1Path, *img2Path, *img3Path}
+	for _, path := range paths {
 		ext := strings.ToLower(filepath.Ext(path))
 		if !imaging.SupportedFormats[ext] {
 			log.Fatalf("Error: Unsupported image format for file %s. Supported formats: PNG, JPEG", path)
@@ -47,27 +94,34 @@ func main() {
 		log.Fatal("Error loading images:", err)
 	}
 
+	// Convert to HDR for alignment
+	hdrImages := convertToHDRSlice(images)
+
 	// Align images
-	alignedImages, err := align.AlignImages(images)
+	alignedHDRImages, err := align.AlignImages(hdrImages)
 	if err != nil {
 		log.Printf("Warning: Image alignment failed: %v", err)
-		alignedImages = images // Use original images if alignment fails
+		log.Println("Proceeding with unaligned images...")
+		alignedHDRImages = hdrImages // Use original images if alignment fails
 	}
 
-	// Validate image properties
-	if err := validateImageProperties(alignedImages); err != nil {
-		log.Fatal("Error validating image properties:", err)
-	}
+	// Convert back to regular images for processing
+	alignedImages := convertToRegularSlice(alignedHDRImages)
 
-	// Process HDR using hdr.Merge
-	hdrImage, err := hdr.Merge(alignedImages)
+	// Create HDR processor with configured parameters
+	hdrProc := processor.NewHDRProcessor().
+		WithToneMapper(*tonemapperFlag).
+		WithParams(map[string]float64{
+			"gamma":     *gammaFlag,
+			"intensity": *intensityFlag,
+			"light":     *lightFlag,
+		})
+
+	// Process HDR image
+	output, err := hdrProc.Process(alignedImages)
 	if err != nil {
 		log.Fatal("Error processing HDR:", err)
 	}
-
-	// Apply tone mapping
-	toneMapper := tmo.NewDefaultReinhard05(hdrImage)
-	ldrImage := toneMapper.Perform()
 
 	// Create output directory if it doesn't exist
 	if dir := filepath.Dir(*outputPath); dir != "." {
@@ -77,49 +131,16 @@ func main() {
 	}
 
 	// Save the result
-	if err := imaging.SaveImage(ldrImage, *outputPath); err != nil {
+	if err := imaging.SaveImage(output, *outputPath); err != nil {
 		log.Fatal("Error saving output image:", err)
 	}
 
 	fmt.Printf("HDR image successfully saved to %s\n", *outputPath)
-}
-
-func validateImageProperties(images []image.Image) error {
-	if len(images) < 2 {
-		return fmt.Errorf("at least two images are required for validation")
+	fmt.Printf("Processing parameters:\n")
+	fmt.Printf("- Tone mapper: %s\n", *tonemapperFlag)
+	fmt.Printf("- Gamma: %.2f\n", *gammaFlag)
+	fmt.Printf("- Intensity: %.2f\n", *intensityFlag)
+	if *tonemapperFlag == "reinhard05" {
+		fmt.Printf("- Light adaptation: %.2f\n", *lightFlag)
 	}
-
-	// Check for nil images first
-	for i, img := range images {
-		if img == nil {
-			return fmt.Errorf("image %d is nil", i+1)
-		}
-	}
-
-	baseImg := images[0]
-	baseProps := imaging.GetImageProperties(baseImg, filepath.Ext(baseImg.Bounds().String()))
-	baseColorModel := baseImg.ColorModel()
-
-	for i, img := range images[1:] {
-		currentProps := imaging.GetImageProperties(img, filepath.Ext(img.Bounds().String()))
-
-		// Check dimensions
-		if img.Bounds() != baseImg.Bounds() {
-			return fmt.Errorf("image %d has different dimensions than the first image", i+2)
-		}
-
-		// Check color model
-		currentColorModel := img.ColorModel()
-		if currentColorModel != baseColorModel {
-			return fmt.Errorf("image %d has a different color model (%T) than the first image (%T)",
-				i+2, currentColorModel, baseColorModel)
-		}
-
-		// Compare other properties
-		if !imaging.ValidateImageProperties(baseProps, currentProps) {
-			return fmt.Errorf("image %d has different properties than the first image", i+2)
-		}
-	}
-
-	return nil
 }

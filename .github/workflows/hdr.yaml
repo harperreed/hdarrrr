@@ -44,7 +44,10 @@ jobs:
                     echo "::error::Go installation failed"
                     exit 1
                   fi
-
+            - name: Verify dependencies
+              run: go mod verify
+            - name: Run go mod tidy
+              run: go mod tidy
             - name: Run tests
               id: tests
               run: |

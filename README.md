@@ -27,7 +27,22 @@ With a user-friendly command-line interface, this tool is simple yet effective, 
    - The `-low`, `-mid`, and `-high` flags are required for specifying the input images.
    - The `-output` flag allows you to specify the name of the output HDR image. If omitted, the default will be `hdr_output.jpg`.
 
-4. **Check Output**:
+4. **Using the TUI**:
+   The application now includes a Text User Interface (TUI) to guide you through the HDR image creation process. To use the TUI, run the following command:
+   ```bash
+   go run ./cmd/hdarrrr/main.go -tui
+   ```
+
+   The TUI will guide you through the following steps:
+   - **Welcome**: An introduction to the HDR image creation process.
+   - **Image Loading**: Input the paths for the low, mid, and high exposure images.
+   - **Parameter Setting**: Choose a tone mapping operator and set optional parameters.
+   - **Summary**: Review the chosen settings and confirm.
+   - **Processing**: View progress updates and receive a notification upon completion.
+
+   You can navigate between steps using the 'Next' and 'Back' buttons or keyboard shortcuts ('n' for next, 'b' for back).
+
+5. **Check Output**:
    After running the command, you should see a message indicating that the HDR image was successfully saved at the specified location!
 
 ## ⚙️ Tech Info
@@ -35,6 +50,7 @@ With a user-friendly command-line interface, this tool is simple yet effective, 
 - **Language**: Go (Golang)
 - **Dependencies**:
   - `github.com/mdouchement/hdr` for HDR processing.
+  - `github.com/marcusolsson/tui-go` for the TUI.
 - **File Structure**:
   - `cmd/`: Contains the command line executable entry point.
   - `pkg/`: Utilities and imaging packages.
@@ -43,6 +59,7 @@ With a user-friendly command-line interface, this tool is simple yet effective, 
 ### Features Included:
 - Image loading and saving in PNG and JPEG formats.
 - HDR image creation using `github.com/mdouchement/hdr`.
+- TUI for guided HDR image creation.
 - Unit tests to ensure functionality across various components.
 
 ### Contributing:

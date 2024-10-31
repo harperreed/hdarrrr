@@ -13,6 +13,7 @@ import (
 	"github.com/harperreed/hdarrrr/pkg/imaging"
 	"github.com/mdouchement/hdr"
 	"github.com/mdouchement/hdr/hdrcolor"
+	"github.com/marcusolsson/tui-go"
 )
 
 // convertToHDR converts a regular image to HDR format
@@ -33,26 +34,6 @@ func convertToHDR(img image.Image) hdr.Image {
 
 	return hdrImg
 }
-
-// convertToRegular converts an HDR image to regular format
-// func convertToRegular(img hdr.Image) image.Image {
-// 	bounds := img.Bounds()
-// 	regular := image.NewRGBA(bounds)
-
-// 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-// 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-// 			r, g, b, _ := img.HDRAt(x, y).HDRRGBA()
-// 			regular.Set(x, y, color.RGBA{
-// 				R: uint8(r * 255),
-// 				G: uint8(g * 255),
-// 				B: uint8(b * 255),
-// 				A: 255,
-// 			})
-// 		}
-// 	}
-
-// 	return regular
-// }
 
 func main() {
 	// Define command line flags

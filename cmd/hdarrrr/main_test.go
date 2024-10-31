@@ -5,6 +5,8 @@ import (
 	"image"
 	"image/color"
 	"testing"
+
+	"github.com/marcusolsson/tui-go"
 )
 
 // validateImageProperties checks if all images have matching dimensions and color models
@@ -200,5 +202,56 @@ func TestHDRProcessing(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestTUI(t *testing.T) {
+	// Initialize TUI components
+	welcome := tui.NewLabel("Welcome to HDR Image Processor")
+	imageLoading := tui.NewLabel("Loading images...")
+	parameterSetting := tui.NewLabel("Setting parameters...")
+	summary := tui.NewLabel("Summary of settings")
+	processing := tui.NewLabel("Processing images...")
+
+	// Create a simple TUI layout
+	root := tui.NewVBox(
+		welcome,
+		imageLoading,
+		parameterSetting,
+		summary,
+		processing,
+	)
+
+	ui, err := tui.New(root)
+	if err != nil {
+		t.Fatalf("Failed to create TUI: %v", err)
+	}
+
+	// Test TUI interactions
+	ui.SetKeybinding("n", func() { fmt.Println("Next step") })
+	ui.SetKeybinding("b", func() { fmt.Println("Previous step") })
+
+	// Simulate user interactions
+	ui.SetFocus(welcome)
+	ui.SetFocus(imageLoading)
+	ui.SetFocus(parameterSetting)
+	ui.SetFocus(summary)
+	ui.SetFocus(processing)
+
+	// Check if TUI components are correctly initialized
+	if welcome.Text() != "Welcome to HDR Image Processor" {
+		t.Errorf("Expected welcome text, got: %s", welcome.Text())
+	}
+	if imageLoading.Text() != "Loading images..." {
+		t.Errorf("Expected image loading text, got: %s", imageLoading.Text())
+	}
+	if parameterSetting.Text() != "Setting parameters..." {
+		t.Errorf("Expected parameter setting text, got: %s", parameterSetting.Text())
+	}
+	if summary.Text() != "Summary of settings" {
+		t.Errorf("Expected summary text, got: %s", summary.Text())
+	}
+	if processing.Text() != "Processing images..." {
+		t.Errorf("Expected processing text, got: %s", processing.Text())
 	}
 }

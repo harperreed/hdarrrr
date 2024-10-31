@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/mdouchement/hdr"
+	"github.com/mdouchement/hdr/tmo"
 	"github.com/harperreed/hdarrrr/pkg/align"
 	"github.com/harperreed/hdarrrr/pkg/imaging"
 )
@@ -64,6 +65,10 @@ func main() {
 		log.Fatal("Error processing HDR:", err)
 	}
 
+	// Apply tone mapping
+	toneMapper := tmo.NewDefaultReinhard05(hdrImage)
+	ldrImage := toneMapper.Perform()
+
 	// Create output directory if it doesn't exist
 	if dir := filepath.Dir(*outputPath); dir != "." {
 		if err := os.MkdirAll(dir, 0755); err != nil {
@@ -72,7 +77,7 @@ func main() {
 	}
 
 	// Save the result
-	if err := imaging.SaveImage(hdrImage, *outputPath); err != nil {
+	if err := imaging.SaveImage(ldrImage, *outputPath); err != nil {
 		log.Fatal("Error saving output image:", err)
 	}
 

@@ -61,7 +61,7 @@ func main() {
 	img2Path := flag.String("mid", "", "Path to mid exposure image (required)")
 	img3Path := flag.String("high", "", "Path to high exposure image (required)")
 	outputPath := flag.String("output", "hdr_output.jpg", "Path for output HDR image")
-	tonemapperFlag := flag.String("tonemapper", "reinhard05", "Tone mapping operator (reinhard05, drago03)")
+	tonemapperFlag := flag.String("tonemapper", "drago03", "Tone mapping operator (reinhard05, drago03)")
 	gammaFlag := flag.Float64("gamma", 1.0, "Gamma correction value")
 	intensityFlag := flag.Float64("intensity", 1.0, "Intensity adjustment")
 	lightFlag := flag.Float64("light", 0.0, "Light adaptation (Reinhard05 only)")

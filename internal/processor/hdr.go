@@ -54,7 +54,7 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 		if img == nil {
 			return nil, fmt.Errorf("image %d is nil", i+1)
 		}
-		
+
 		// Handle both HDR and LDR inputs
 		if hdrImg, ok := img.(hdr.Image); ok {
 			hdrImages[i] = hdrImg
@@ -71,7 +71,7 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 	// Create merged HDR image
 	bounds := hdrImages[0].Bounds()
 	merged := hdr.NewRGB(bounds)
-	
+
 	// Simple exposure fusion (average method)
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {

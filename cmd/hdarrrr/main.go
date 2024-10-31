@@ -4,20 +4,16 @@ import (
 	"flag"
 	"fmt"
 	"image"
+	"image/color"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/harperreed/hdarrrr/internal/processor"
 	"github.com/harperreed/hdarrrr/pkg/align"
 	"github.com/harperreed/hdarrrr/pkg/imaging"
 	"github.com/mdouchement/hdr"
 	"github.com/mdouchement/hdr/hdrcolor"
-
-	// Import HDR codecs
-	_ "github.com/mdouchement/hdr/codec/rgbe"
-	_ "github.com/mdouchement/tiff"
 )
 
 // convertToHDR converts a regular image to HDR format
@@ -39,22 +35,24 @@ func convertToHDR(img image.Image) hdr.Image {
 	return hdrImg
 }
 
-// convertToHDRSlice converts a slice of regular images to HDR images
-func convertToHDRSlice(images []image.Image) []hdr.Image {
-	hdrImages := make([]hdr.Image, len(images))
-	for i, img := range images {
-		hdrImages[i] = convertToHDR(img)
-	}
-	return hdrImages
-}
+// convertToRegular converts an HDR image to regular format
+func convertToRegular(img hdr.Image) image.Image {
+	bounds := img.Bounds()
+	regular := image.NewRGBA(bounds)
 
-// convertToRegularSlice converts a slice of HDR images to regular images
-func convertToRegularSlice(images []hdr.Image) []image.Image {
-	regularImages := make([]image.Image, len(images))
-	for i, img := range images {
-		regularImages[i] = img.(image.Image)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			r, g, b, _ := img.HDRAt(x, y).HDRRGBA()
+			regular.Set(x, y, color.RGBA{
+				R: uint8(r * 255),
+				G: uint8(g * 255),
+				B: uint8(b * 255),
+				A: 255,
+			})
+		}
 	}
-	return regularImages
+
+	return regular
 }
 
 func main() {
@@ -79,34 +77,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Validate file extensions
-	paths := []string{*img1Path, *img2Path, *img3Path}
-	for _, path := range paths {
-		ext := strings.ToLower(filepath.Ext(path))
-		if !imaging.SupportedFormats[ext] {
-			log.Fatalf("Error: Unsupported image format for file %s. Supported formats: PNG, JPEG", path)
-		}
-	}
-
 	// Load images
 	images, err := imaging.LoadImages(*img1Path, *img2Path, *img3Path)
 	if err != nil {
 		log.Fatal("Error loading images:", err)
 	}
 
-	// Convert to HDR for alignment
-	hdrImages := convertToHDRSlice(images)
+	// Convert regular images to HDR for alignment
+	hdrImages := make([]hdr.Image, len(images))
+	for i, img := range images {
+		hdrImages[i] = convertToHDR(img)
+	}
 
-	// Align images
-	alignedHDRImages, err := align.AlignImages(hdrImages)
+	// Align HDR images
+	alignedImages, err := align.AlignImages(images) // Align regular images first
 	if err != nil {
 		log.Printf("Warning: Image alignment failed: %v", err)
 		log.Println("Proceeding with unaligned images...")
-		alignedHDRImages = hdrImages // Use original images if alignment fails
+		alignedImages = images
 	}
 
-	// Convert back to regular images for processing
-	alignedImages := convertToRegularSlice(alignedHDRImages)
+	// Convert aligned images to HDR
+	alignedHDRImages := make([]hdr.Image, len(alignedImages))
+	for i, img := range alignedImages {
+		alignedHDRImages[i] = convertToHDR(img)
+	}
 
 	// Create HDR processor with configured parameters
 	hdrProc := processor.NewHDRProcessor().

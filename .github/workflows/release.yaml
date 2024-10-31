@@ -53,6 +53,12 @@ jobs:
               run: GOOS=linux GOARCH=amd64 go build -o hdarrrr-linux-amd64 ./cmd/hdarrrr
             - name: Build for macOS ARM64
               run: GOOS=darwin GOARCH=arm64 go build -o hdarrrr-darwin-arm64 ./cmd/hdarrrr
+            - name: Build GUI for Windows
+              run: GOOS=windows GOARCH=amd64 go build -o hdarrrr-gui-windows-amd64.exe ./cmd/hdarrrr/gui.go
+            - name: Build GUI for Linux
+              run: GOOS=linux GOARCH=amd64 go build -o hdarrrr-gui-linux-amd64 ./cmd/hdarrrr/gui.go
+            - name: Build GUI for macOS ARM64
+              run: GOOS=darwin GOARCH=arm64 go build -o hdarrrr-gui-darwin-arm64 ./cmd/hdarrrr/gui.go
             - name: Create Release
               id: create_release
               uses: actions/create-release@v1
@@ -92,4 +98,31 @@ jobs:
                   upload_url: ${{ steps.create_release.outputs.upload_url }}
                   asset_path: ./hdarrrr-darwin-arm64
                   asset_name: hdarrrr-darwin-arm64
+                  asset_content_type: application/octet-stream
+            - name: Upload GUI Windows Release Asset
+              uses: actions/upload-release-asset@v1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  upload_url: ${{ steps.create_release.outputs.upload_url }}
+                  asset_path: ./hdarrrr-gui-windows-amd64.exe
+                  asset_name: hdarrrr-gui-windows-amd64.exe
+                  asset_content_type: application/octet-stream
+            - name: Upload GUI Linux Release Asset
+              uses: actions/upload-release-asset@v1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  upload_url: ${{ steps.create_release.outputs.upload_url }}
+                  asset_path: ./hdarrrr-gui-linux-amd64
+                  asset_name: hdarrrr-gui-linux-amd64
+                  asset_content_type: application/octet-stream
+            - name: Upload GUI macOS ARM64 Release Asset
+              uses: actions/upload-release-asset@v1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  upload_url: ${{ steps.create_release.outputs.upload_url }}
+                  asset_path: ./hdarrrr-gui-darwin-arm64
+                  asset_name: hdarrrr-gui-darwin-arm64
                   asset_content_type: application/octet-stream

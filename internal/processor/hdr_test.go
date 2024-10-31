@@ -4,8 +4,6 @@ import (
 	"image"
 	"image/color"
 	"testing"
-
-	"github.com/harperreed/hdarrrr/pkg/align"
 )
 
 func createTestImage(width, height int, value uint8) image.Image {

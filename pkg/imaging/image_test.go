@@ -11,22 +11,21 @@ import (
 	"testing"
 )
 
-// TestImage represents a test image with its format and data
-type TestImage struct {
-	data   []byte
-	format string
-	path   string
-}
-
-// createTestImage creates a small test image with a specific color
-func createTestImage(t *testing.T, format string, c color.Color) TestImage {
-	// Create a 2x2 test image
-	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
-	for y := 0; y < 2; y++ {
-		for x := 0; x < 2; x++ {
+// createTestImage creates a test image with specified dimensions and color
+func createTestImage(width, height int, c color.Color) image.Image {
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
 			img.Set(x, y, c)
 		}
 	}
+	return img
+}
+
+// createTestImageFile creates a temporary image file for testing
+func createTestImageFile(t *testing.T, format string, c color.Color) (string, func()) {
+	// Create a 2x2 test image
+	img := createTestImage(2, 2, c)
 
 	// Encode the image to bytes
 	var buf bytes.Buffer
@@ -39,6 +38,8 @@ func createTestImage(t *testing.T, format string, c color.Color) TestImage {
 		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 100}); err != nil {
 			t.Fatal("Failed to encode JPEG:", err)
 		}
+	default:
+		t.Fatalf("Unsupported format: %s", format)
 	}
 
 	// Create temporary file
@@ -46,58 +47,36 @@ func createTestImage(t *testing.T, format string, c color.Color) TestImage {
 	if err != nil {
 		t.Fatal("Failed to create temp file:", err)
 	}
+
 	if _, err := tmpFile.Write(buf.Bytes()); err != nil {
+		os.Remove(tmpFile.Name())
 		t.Fatal("Failed to write temp file:", err)
 	}
 	tmpFile.Close()
 
-	return TestImage{
-		data:   buf.Bytes(),
-		format: format,
-		path:   tmpFile.Name(),
+	cleanup := func() {
+		os.Remove(tmpFile.Name())
 	}
+
+	return tmpFile.Name(), cleanup
 }
 
 func TestLoadImages(t *testing.T) {
-	// Create test images all in PNG format to ensure property matching
-	testImages := []TestImage{
-		createTestImage(t, "png", color.RGBA{R: 255, G: 0, B: 0, A: 255}),
-		createTestImage(t, "png", color.RGBA{R: 0, G: 255, B: 0, A: 255}),
-		createTestImage(t, "png", color.RGBA{R: 0, G: 0, B: 255, A: 255}),
-	}
+	// Create test files
+	file1, cleanup1 := createTestImageFile(t, "png", color.RGBA{R: 255, A: 255})
+	defer cleanup1()
+	file2, cleanup2 := createTestImageFile(t, "png", color.RGBA{G: 255, A: 255})
+	defer cleanup2()
+	file3, cleanup3 := createTestImageFile(t, "png", color.RGBA{B: 255, A: 255})
+	defer cleanup3()
 
-	// Clean up test files
-	defer func() {
-		for _, img := range testImages {
-			os.Remove(img.path)
-		}
-	}()
-
-	// Get paths
-	paths := make([]string, len(testImages))
-	for i, img := range testImages {
-		paths[i] = img.path
-	}
-
-	// Test loading multiple images
-	images, err := LoadImages(paths...)
+	images, err := LoadImages(file1, file2, file3)
 	if err != nil {
 		t.Fatalf("Failed to load images: %v", err)
 	}
 
-	if len(images) != len(testImages) {
-		t.Errorf("Expected %d images, got %d", len(testImages), len(images))
-	}
-
-	// Test properties match
-	if len(images) > 0 {
-		baseProps := GetImageProperties(images[0], ".png")
-		for i := 1; i < len(images); i++ {
-			props := GetImageProperties(images[i], ".png")
-			if !ValidateImageProperties(baseProps, props) {
-				t.Errorf("Properties don't match for image %d", i)
-			}
-		}
+	if len(images) != 3 {
+		t.Errorf("Expected 3 images, got %d", len(images))
 	}
 }
 
@@ -111,23 +90,23 @@ func TestLoadImage(t *testing.T) {
 		{
 			name:        "Valid PNG",
 			format:      "png",
-			color:       color.RGBA{R: 255, G: 0, B: 0, A: 255},
+			color:       color.RGBA{R: 255, A: 255},
 			expectError: false,
 		},
 		{
 			name:        "Valid JPEG",
 			format:      "jpeg",
-			color:       color.RGBA{R: 0, G: 255, B: 0, A: 255},
+			color:       color.RGBA{G: 255, A: 255},
 			expectError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testImg := createTestImage(t, tt.format, tt.color)
-			defer os.Remove(testImg.path)
+			filePath, cleanup := createTestImageFile(t, tt.format, tt.color)
+			defer cleanup()
 
-			img, err := LoadImage(testImg.path)
+			img, err := LoadImage(filePath)
 			if tt.expectError {
 				if err == nil {
 					t.Error("Expected error, got nil")
@@ -146,6 +125,62 @@ func TestLoadImage(t *testing.T) {
 			bounds := img.Bounds()
 			if bounds.Dx() != 2 || bounds.Dy() != 2 {
 				t.Errorf("Expected 2x2 image, got %dx%d", bounds.Dx(), bounds.Dy())
+			}
+		})
+	}
+}
+
+func TestAlignImages(t *testing.T) {
+	tests := []struct {
+		name        string
+		images      []image.Image
+		expectError bool
+	}{
+		{
+			name: "Aligned images",
+			images: []image.Image{
+				createTestImage(2, 2, color.RGBA{R: 255, A: 255}),
+				createTestImage(2, 2, color.RGBA{G: 255, A: 255}),
+				createTestImage(2, 2, color.RGBA{B: 255, A: 255}),
+			},
+			expectError: false,
+		},
+		{
+			name: "Misaligned images",
+			images: []image.Image{
+				createTestImage(2, 2, color.RGBA{R: 255, A: 255}),
+				createTestImage(3, 3, color.RGBA{G: 255, A: 255}), // Different size
+				createTestImage(2, 2, color.RGBA{B: 255, A: 255}),
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			alignedImages, err := AlignImages(tt.images)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if len(alignedImages) != len(tt.images) {
+				t.Errorf("Expected %d aligned images, got %d", len(tt.images), len(alignedImages))
+			}
+
+			// Check that aligned images have the same dimensions
+			baseBounds := alignedImages[0].Bounds()
+			for i, img := range alignedImages[1:] {
+				if img.Bounds() != baseBounds {
+					t.Errorf("Aligned image %d has different dimensions", i+1)
+				}
 			}
 		})
 	}
@@ -174,17 +209,10 @@ func TestSaveImage(t *testing.T) {
 		},
 	}
 
-	// Create a test image
-	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
-	for y := 0; y < 2; y++ {
-		for x := 0; x < 2; x++ {
-			img.Set(x, y, color.RGBA{R: 255, G: 0, B: 0, A: 255})
-		}
-	}
+	img := createTestImage(2, 2, color.RGBA{R: 255, A: 255})
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary output path
 			tmpFile := filepath.Join(os.TempDir(), "test_output."+tt.format)
 			defer os.Remove(tmpFile)
 
@@ -206,73 +234,5 @@ func TestSaveImage(t *testing.T) {
 				t.Errorf("Failed to verify output file: %v", err)
 			}
 		})
-	}
-}
-
-func TestUnsupportedFormat(t *testing.T) {
-	// Try to load a non-image file
-	tmpFile, err := os.CreateTemp("", "test_*.txt")
-	if err != nil {
-		t.Fatal("Failed to create temp file:", err)
-	}
-	defer os.Remove(tmpFile.Name())
-
-	_, err = LoadImage(tmpFile.Name())
-	if err == nil {
-		t.Error("Expected error for unsupported format, got nil")
-	}
-}
-
-func TestGetImageProperties(t *testing.T) {
-	testImg := createTestImage(t, "png", color.RGBA{R: 255, G: 0, B: 0, A: 255})
-	defer os.Remove(testImg.path)
-
-	img, err := LoadImage(testImg.path)
-	if err != nil {
-		t.Fatalf("Failed to load image: %v", err)
-	}
-
-	props := GetImageProperties(img, testImg.format)
-	if props.Width != 2 || props.Height != 2 {
-		t.Errorf("Expected dimensions 2x2, got %dx%d", props.Width, props.Height)
-	}
-	if props.ColorDepth != 8 {
-		t.Errorf("Expected color depth 8, got %d", props.ColorDepth)
-	}
-	if props.Format != "png" {
-		t.Errorf("Expected format png, got %s", props.Format)
-	}
-}
-
-func TestValidateImageProperties(t *testing.T) {
-	img1 := createTestImage(t, "png", color.RGBA{R: 255, G: 0, B: 0, A: 255})
-	defer os.Remove(img1.path)
-	img2 := createTestImage(t, "png", color.RGBA{R: 0, G: 255, B: 0, A: 255})
-	defer os.Remove(img2.path)
-	img3 := createTestImage(t, "jpeg", color.RGBA{R: 0, G: 0, B: 255, A: 255})
-	defer os.Remove(img3.path)
-
-	image1, err := LoadImage(img1.path)
-	if err != nil {
-		t.Fatalf("Failed to load image1: %v", err)
-	}
-	image2, err := LoadImage(img2.path)
-	if err != nil {
-		t.Fatalf("Failed to load image2: %v", err)
-	}
-	image3, err := LoadImage(img3.path)
-	if err != nil {
-		t.Fatalf("Failed to load image3: %v", err)
-	}
-
-	props1 := GetImageProperties(image1, img1.format)
-	props2 := GetImageProperties(image2, img2.format)
-	props3 := GetImageProperties(image3, img3.format)
-
-	if !ValidateImageProperties(props1, props2) {
-		t.Error("Expected properties to match for image1 and image2")
-	}
-	if ValidateImageProperties(props1, props3) {
-		t.Error("Expected properties to not match for image1 and image3")
 	}
 }

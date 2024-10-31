@@ -8,6 +8,8 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"github.com/harperreed/hdarrrr/pkg/align"
 )
 
 // SupportedFormats contains the file extensions we support
@@ -115,4 +117,13 @@ func SaveImage(img image.Image, outputPath string) error {
 	default:
 		return errors.New("unsupported output format: " + ext + ". Supported formats: PNG, JPEG")
 	}
+}
+
+// AlignImages aligns multiple images using feature matching
+func AlignImages(images []image.Image) ([]image.Image, error) {
+	alignedImages, err := align.AlignImages(images)
+	if err != nil {
+		return nil, err
+	}
+	return alignedImages, nil
 }

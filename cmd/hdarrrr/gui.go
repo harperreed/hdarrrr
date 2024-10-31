@@ -24,6 +24,7 @@ var (
 	imageData [3]*ImageData
 	progress  *widget.ProgressBar
 	mu        sync.Mutex
+	outputDir string
 )
 
 func main() {
@@ -54,12 +55,18 @@ func main() {
 		imagePreviews[i].FillMode = canvas.ImageFillContain
 	}
 
+	// Create output directory selection button
+	outputDirButton := widget.NewButton("Select Output Directory", func() {
+		openOutputDirDialog(w)
+	})
+
 	// Layout
 	content := container.NewVBox(
 		widget.NewLabel("Select 3 images for HDR processing:"),
 		container.NewHBox(imageButtons[0], imagePreviews[0]),
 		container.NewHBox(imageButtons[1], imagePreviews[1]),
 		container.NewHBox(imageButtons[2], imagePreviews[2]),
+		outputDirButton,
 		processButton,
 		progress,
 	)
@@ -96,6 +103,22 @@ func openImageFileDialog(w fyne.Window, index int) {
 	}, w).Show()
 }
 
+func openOutputDirDialog(w fyne.Window) {
+	dialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
+		if err != nil {
+			dialog.ShowError(err, w)
+			return
+		}
+		if uri == nil {
+			return
+		}
+
+		mu.Lock()
+		outputDir = uri.Path()
+		mu.Unlock()
+	}, w).Show()
+}
+
 func processImages(w fyne.Window) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -108,6 +131,12 @@ func processImages(w fyne.Window) {
 		}
 	}
 
+	// Check if output directory is selected
+	if outputDir == "" {
+		dialog.ShowError(fyne.NewError("Error", "Please select an output directory"), w)
+		return
+	}
+
 	// Simulate image processing
 	progress.SetValue(0)
 	for i := 0; i <= 100; i++ {
@@ -115,7 +144,7 @@ func processImages(w fyne.Window) {
 	}
 
 	// Save the resulting image
-	outputPath := filepath.Join(os.TempDir(), "hdr_result.jpg")
+	outputPath := filepath.Join(outputDir, "hdr_result.jpg")
 	err := saveImage(outputPath)
 	if err != nil {
 		dialog.ShowError(err, w)

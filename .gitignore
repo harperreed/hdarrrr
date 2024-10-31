@@ -1,3 +1,7 @@
 image-dupes
 output.txt
 *.html
+go.sum
+*.jpg
+.DS_Store
+coverage.out

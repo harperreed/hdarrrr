@@ -22,7 +22,6 @@ jobs:
         permissions:
             contents: read
             pull-requests: write
-            actions: write
 
         steps:
             - name: Checkout repository
@@ -98,11 +97,6 @@ jobs:
                     fi
                   done
 
-            - name: Install ImageMagick
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y imagemagick
-
             - name: Process HDR image
               id: process-hdr
               run: |
@@ -136,13 +130,13 @@ jobs:
                   echo "size=$size" >> $GITHUB_OUTPUT
                   echo "HDR processing completed successfully. Output size: $size bytes"
 
-            - name: Upload HDR result image
-              uses: edunad/actions-image@v2.0.0
+            - name: Upload HDR result to ImgBB
+              id: upload-hdr
+              uses: McCzarny/upload-image@v1.0.0
               with:
-                  path: "${{ env.OUTPUT_DIR }}/${{ env.OUTPUT_FILE }}"
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  title: "HDR Processing Result 🎨"
-                  annotationLevel: "notice"
+                  path: ${{ env.OUTPUT_DIR }}/${{ env.OUTPUT_FILE }}
+                  uploadMethod: imgbb
+                  apiKey: ${{ secrets.IMGBB_API_KEY }}
 
             - name: Find existing comment
               uses: peter-evans/find-comment@v2
@@ -162,7 +156,8 @@ jobs:
 
                       Generated at: ${{ github.event.pull_request.updated_at }}
 
-                      The HDR processed image has been uploaded to the PR as an annotation.
+                      ![HDR Result](${{ steps.upload-hdr.outputs.url }})
+
                       File size: ${{ steps.process-hdr.outputs.size }} bytes
 
                       <details>
@@ -176,11 +171,33 @@ jobs:
                       </details>
                   edit-mode: replace
 
-            - name: Upload all images on failure
-              if: ${{ failure() }}
-              uses: edunad/actions-image@v2.0.0
+            - name: Upload input images on failure
+              if: failure()
+              run: |
+                  for img in "low" "mid" "high"; do
+                    - uses: McCzarny/upload-image@v1.0.0
+                      id: upload-${{ img }}
+                      with:
+                        path: ${{ env.INPUT_DIR }}/${img}.jpg
+                        uploadMethod: imgbb
+                        apiKey: ${{ secrets.IMGBB_API_KEY }}
+                  done
+
+            - name: Comment failure details
+              if: failure()
+              uses: peter-evans/create-or-update-comment@v3
               with:
-                  path: "${{ env.INPUT_DIR }}/*.jpg"
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  title: "HDR Processing Input Images 🔍"
-                  annotationLevel: "failure"
+                  issue-number: ${{ github.event.pull_request.number }}
+                  body: |
+                      ## HDR Processing Failed - Input Images
+
+                      Low exposure:
+                      ![Low](${{ steps.upload-low.outputs.url }})
+
+                      Mid exposure:
+                      ![Mid](${{ steps.upload-mid.outputs.url }})
+
+                      High exposure:
+                      ![High](${{ steps.upload-high.outputs.url }})
+
+                      Please check the workflow logs for more details.

@@ -34,17 +34,15 @@ With a user-friendly command-line interface, this tool is simple yet effective, 
 
 - **Language**: Go (Golang)
 - **Dependencies**:
-  - No external libraries required.
+  - `github.com/mdouchement/hdr` for HDR processing.
 - **File Structure**:
   - `cmd/`: Contains the command line executable entry point.
-  - `internal/`: Contains internal logic related to the HDR processing.
   - `pkg/`: Utilities and imaging packages.
   - `go.mod`: Module configuration file for managing dependencies.
 
 ### Features Included:
 - Image loading and saving in PNG and JPEG formats.
-- HDR image creation using a custom `HDRProcessor`.
-- Tone mapping implementation with a Reinhard tone mapper.
+- HDR image creation using `github.com/mdouchement/hdr`.
 - Unit tests to ensure functionality across various components.
 
 ### Contributing:

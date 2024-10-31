@@ -1,3 +1,4 @@
+// align.go
 package align
 
 import (
@@ -29,6 +30,9 @@ func (a *BasicAligner) Align(images []image.Image) ([]image.Image, error) {
 
 	baseBounds := images[0].Bounds()
 	for i, img := range images[1:] {
+		if img == nil {
+			return nil, fmt.Errorf("image %d is nil", i+1)
+		}
 		if img.Bounds() != baseBounds {
 			return nil, fmt.Errorf("image %d has different dimensions than the base image", i+1)
 		}

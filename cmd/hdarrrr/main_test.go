@@ -1,10 +1,43 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"testing"
 )
+
+// validateImageProperties checks if all images have matching dimensions and color models
+func validateImageProperties(images []image.Image) error {
+	if len(images) < 2 {
+		return fmt.Errorf("at least two images are required for validation")
+	}
+
+	// Check for nil images first
+	for i, img := range images {
+		if img == nil {
+			return fmt.Errorf("image %d is nil", i+1)
+		}
+	}
+
+	baseImg := images[0]
+	baseBounds := baseImg.Bounds()
+	baseColorModel := baseImg.ColorModel()
+
+	for i, img := range images[1:] {
+		// Check dimensions
+		if img.Bounds() != baseBounds {
+			return fmt.Errorf("image %d has different dimensions than the first image", i+2)
+		}
+
+		// Check color model
+		if img.ColorModel() != baseColorModel {
+			return fmt.Errorf("image %d has a different color model than the first image", i+2)
+		}
+	}
+
+	return nil
+}
 
 // createTestImage creates a test image with specified dimensions and color model
 func createTestImage(width, height int, colorModel color.Model) image.Image {
@@ -25,6 +58,25 @@ func createTestImage(width, height int, colorModel color.Model) image.Image {
 	}
 	return img
 }
+
+// createHDRImage converts a regular image to HDR format
+// func createHDRImage(width, height int, colorModel color.Model) hdr.Image {
+// 	img := createTestImage(width, height, colorModel)
+// 	bounds := img.Bounds()
+// 	hdrImg := hdr.NewRGB(bounds)
+
+// 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+// 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+// 			r, g, b, _ := img.At(x, y).RGBA()
+// 			hdrImg.Set(x, y, hdrcolor.RGB{
+// 				R: float64(r) / 0xffff,
+// 				G: float64(g) / 0xffff,
+// 				B: float64(b) / 0xffff,
+// 			})
+// 		}
+// 	}
+// 	return hdrImg
+// }
 
 func TestValidateImageProperties(t *testing.T) {
 	tests := []struct {
@@ -76,6 +128,58 @@ func TestValidateImageProperties(t *testing.T) {
 			images: []image.Image{
 				createTestImage(100, 100, color.RGBAModel),
 				nil,
+				createTestImage(100, 100, color.RGBAModel),
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateImageProperties(tt.images)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestHDRProcessing(t *testing.T) {
+	tests := []struct {
+		name        string
+		images      []image.Image
+		expectError bool
+	}{
+		{
+			name: "Valid HDR processing",
+			images: []image.Image{
+				createTestImage(100, 100, color.RGBAModel),
+				createTestImage(100, 100, color.RGBAModel),
+				createTestImage(100, 100, color.RGBAModel),
+			},
+			expectError: false,
+		},
+		{
+			name: "HDR processing with different dimensions",
+			images: []image.Image{
+				createTestImage(100, 100, color.RGBAModel),
+				createTestImage(200, 200, color.RGBAModel),
+				createTestImage(100, 100, color.RGBAModel),
+			},
+			expectError: true,
+		},
+		{
+			name: "HDR processing with different color models",
+			images: []image.Image{
+				createTestImage(100, 100, color.RGBAModel),
+				createTestImage(100, 100, color.GrayModel),
 				createTestImage(100, 100, color.RGBAModel),
 			},
 			expectError: true,

@@ -9,7 +9,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/harperreed/hdarrrr/pkg/align"
+	"github.com/mdouchement/hdr"
+	"github.com/mdouchement/hdr/hdrcolor"
 )
 
 // SupportedFormats contains the file extensions we support
@@ -97,7 +98,9 @@ func LoadImage(filepath string) (image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	return img, nil
+
+	// Convert to HDR format
+	return convertToHDR(img), nil
 }
 
 // SaveImage saves an image to a file path
@@ -119,11 +122,21 @@ func SaveImage(img image.Image, outputPath string) error {
 	}
 }
 
-// AlignImages aligns multiple images using feature matching
-func AlignImages(images []image.Image) ([]image.Image, error) {
-	alignedImages, err := align.AlignImages(images)
-	if err != nil {
-		return nil, err
+// convertToHDR converts a regular image to HDR format
+func convertToHDR(img image.Image) hdr.Image {
+	bounds := img.Bounds()
+	hdrImg := hdr.NewRGB(bounds)
+
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			r, g, b, _ := img.At(x, y).RGBA()
+			hdrImg.Set(x, y, hdrcolor.RGB{
+				R: float64(r) / 0xffff,
+				G: float64(g) / 0xffff,
+				B: float64(b) / 0xffff,
+			})
+		}
 	}
-	return alignedImages, nil
+
+	return hdrImg
 }

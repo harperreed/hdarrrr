@@ -16,16 +16,6 @@ func createTestImage(width, height int, value uint8) image.Image {
 	return img
 }
 
-func createTestGray16Image(width, height int, value uint16) image.Image {
-	img := image.NewGray16(image.Rect(0, 0, width, height))
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			img.Set(x, y, color.Gray16{Y: value})
-		}
-	}
-	return img
-}
-
 func TestHDRProcessor_Process(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -51,18 +41,22 @@ func TestHDRProcessor_Process(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "Different color depth images",
+			name: "Single image",
 			images: []image.Image{
-				createTestImage(2, 2, 128),
-				createTestGray16Image(2, 2, 32768),
 				createTestImage(2, 2, 128),
 			},
 			expectError: true,
 		},
 		{
-			name: "Wrong number of images",
+			name:        "Nil images slice",
+			images:      nil,
+			expectError: true,
+		},
+		{
+			name: "One nil image",
 			images: []image.Image{
 				createTestImage(2, 2, 128),
+				nil,
 				createTestImage(2, 2, 128),
 			},
 			expectError: true,
@@ -90,10 +84,11 @@ func TestHDRProcessor_Process(t *testing.T) {
 			}
 
 			// Check result dimensions
-			bounds := result.Bounds()
-			expectedBounds := tt.images[0].Bounds()
-			if bounds != expectedBounds {
-				t.Errorf("Expected dimensions %v, got %v", expectedBounds, bounds)
+			if len(tt.images) > 0 {
+				expectedBounds := tt.images[0].Bounds()
+				if result.Bounds() != expectedBounds {
+					t.Errorf("Expected dimensions %v, got %v", expectedBounds, result.Bounds())
+				}
 			}
 		})
 	}

@@ -1,11 +1,10 @@
+// align.go
 package align
 
 import (
 	"errors"
 	"fmt"
 	"image"
-
-	"github.com/mdouchement/hdr"
 )
 
 // Aligner defines the interface for image alignment implementations
@@ -24,13 +23,16 @@ func NewBasicAligner() *BasicAligner {
 // Align validates image dimensions and returns the original images.
 // This implementation ensures images are the same size but does not perform
 // any pixel-level alignment.
-func (a *BasicAligner) Align(images []hdr.Image) ([]hdr.Image, error) {
+func (a *BasicAligner) Align(images []image.Image) ([]image.Image, error) {
 	if len(images) < 2 {
 		return nil, errors.New("at least two images are required for alignment")
 	}
 
 	baseBounds := images[0].Bounds()
 	for i, img := range images[1:] {
+		if img == nil {
+			return nil, fmt.Errorf("image %d is nil", i+1)
+		}
 		if img.Bounds() != baseBounds {
 			return nil, fmt.Errorf("image %d has different dimensions than the base image", i+1)
 		}
@@ -40,7 +42,7 @@ func (a *BasicAligner) Align(images []hdr.Image) ([]hdr.Image, error) {
 }
 
 // AlignImages is a convenience function that uses the BasicAligner
-func AlignImages(images []hdr.Image) ([]hdr.Image, error) {
+func AlignImages(images []image.Image) ([]image.Image, error) {
 	aligner := NewBasicAligner()
 	return aligner.Align(images)
 }

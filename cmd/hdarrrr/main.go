@@ -34,33 +34,13 @@ func convertToHDR(img image.Image) hdr.Image {
 	return hdrImg
 }
 
-// convertToRegular converts an HDR image to regular format
-// func convertToRegular(img hdr.Image) image.Image {
-// 	bounds := img.Bounds()
-// 	regular := image.NewRGBA(bounds)
-
-// 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-// 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-// 			r, g, b, _ := img.HDRAt(x, y).HDRRGBA()
-// 			regular.Set(x, y, color.RGBA{
-// 				R: uint8(r * 255),
-// 				G: uint8(g * 255),
-// 				B: uint8(b * 255),
-// 				A: 255,
-// 			})
-// 		}
-// 	}
-
-// 	return regular
-// }
-
 func main() {
 	// Define command line flags
 	img1Path := flag.String("low", "", "Path to low exposure image (required)")
 	img2Path := flag.String("mid", "", "Path to mid exposure image (required)")
 	img3Path := flag.String("high", "", "Path to high exposure image (required)")
 	outputPath := flag.String("output", "hdr_output.jpg", "Path for output HDR image")
-	tonemapperFlag := flag.String("tonemapper", "drago03", "Tone mapping operator (reinhard05, drago03)")
+	tonemapperFlag := flag.String("tonemapper", "drago03", "Tone mapping operator (linear, logarithmic, drago03, durand, custom_reinhard05, reinhard05, icam06)")
 	gammaFlag := flag.Float64("gamma", 1.0, "Gamma correction value")
 	intensityFlag := flag.Float64("intensity", 1.0, "Intensity adjustment")
 	lightFlag := flag.Float64("light", 0.0, "Light adaptation (Reinhard05 only)")
@@ -73,6 +53,28 @@ func main() {
 		fmt.Println("Error: All three exposure images are required")
 		fmt.Println("\nUsage:")
 		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	// Validate tone mapping operator
+	validToneMappers := map[string]bool{
+		"linear":            true,
+		"logarithmic":       true,
+		"drago03":           true,
+		"durand":            true,
+		"custom_reinhard05": true,
+		"reinhard05":        true,
+		"icam06":            true,
+	}
+	if !validToneMappers[*tonemapperFlag] {
+		fmt.Printf("Error: Invalid tone mapping operator '%s'\n", *tonemapperFlag)
+		fmt.Println("Valid options are: linear, logarithmic, drago03, durand, custom_reinhard05, reinhard05, icam06")
+		os.Exit(1)
+	}
+
+	// Validate gamma value
+	if *gammaFlag <= 0 {
+		fmt.Println("Error: Gamma value must be a positive number")
 		os.Exit(1)
 	}
 

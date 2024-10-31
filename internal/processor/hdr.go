@@ -98,6 +98,16 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 		tm = tmo.NewReinhard05(merged, p.params["intensity"], p.params["light"], p.params["gamma"])
 	case "drago03":
 		tm = tmo.NewDrago03(merged, p.params["gamma"])
+	case "linear":
+		tm = tmo.NewLinear(merged)
+	case "logarithmic":
+		tm = tmo.NewLogarithmic(merged)
+	case "durand":
+		tm = tmo.NewDurand(merged)
+	case "custom_reinhard05":
+		tm = tmo.NewCustomReinhard05(merged)
+	case "icam06":
+		tm = tmo.NewICam06(merged)
 	default:
 		return nil, fmt.Errorf("unsupported tone mapper: %s", p.toneMapper)
 	}

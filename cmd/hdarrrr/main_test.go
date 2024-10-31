@@ -100,3 +100,55 @@ func TestValidateImageProperties(t *testing.T) {
 		})
 	}
 }
+
+func TestHDRProcessing(t *testing.T) {
+	tests := []struct {
+		name        string
+		images      []hdr.Image
+		expectError bool
+	}{
+		{
+			name: "Valid HDR processing",
+			images: []hdr.Image{
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
+			},
+			expectError: false,
+		},
+		{
+			name: "HDR processing with different dimensions",
+			images: []hdr.Image{
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
+				hdr.NewImageFromGoImage(createTestImage(200, 200, color.RGBAModel)),
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
+			},
+			expectError: true,
+		},
+		{
+			name: "HDR processing with different color models",
+			images: []hdr.Image{
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.GrayModel)),
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := hdr.Merge(tt.images)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+			}
+		})
+	}
+}

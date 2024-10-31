@@ -26,6 +26,10 @@ With a user-friendly command-line interface, this tool is simple yet effective, 
 
    - The `-low`, `-mid`, and `-high` flags are required for specifying the input images.
    - The `-output` flag allows you to specify the name of the output HDR image. If omitted, the default will be `hdr_output.jpg`.
+   - The `-tonemapper` flag allows you to specify the tone mapping operator. Valid options are: `linear`, `logarithmic`, `drago03`, `durand`, `custom_reinhard05`, `reinhard05`, `icam06`. The default is `drago03`.
+   - The `-gamma` flag allows you to set the gamma correction value. The default is `1.0`.
+   - The `-intensity` flag allows you to adjust the intensity of the tone mapping. The default is `1.0`.
+   - The `-light` flag allows you to set the light adaptation parameter, specifically for `reinhard05`. The default is `0.0`.
 
 4. **Check Output**:
    After running the command, you should see a message indicating that the HDR image was successfully saved at the specified location!

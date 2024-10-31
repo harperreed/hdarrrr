@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"math"
 
 	"github.com/mdouchement/hdr"
 	"github.com/mdouchement/hdr/hdrcolor"
@@ -21,9 +22,12 @@ func NewHDRProcessor() *HDRProcessor {
 	return &HDRProcessor{
 		toneMapper: "reinhard05",
 		params: map[string]float64{
-			"gamma":     1.0,
-			"intensity": 1.0,
-			"light":     0.0,
+			"gamma":      1.0,
+			"intensity":  1.0,
+			"light":      0.0,
+			"saturation": 0.8,
+			"contrast":   4.0,
+			"chromatic":  0.0,
 		},
 	}
 }
@@ -42,10 +46,24 @@ func (p *HDRProcessor) WithParams(params map[string]float64) *HDRProcessor {
 	return p
 }
 
+func (p *HDRProcessor) validateImageSize(img image.Image) error {
+	bounds := img.Bounds()
+	if p.toneMapper == "icam06" && (bounds.Dx() < 32 || bounds.Dy() < 32) {
+		return fmt.Errorf("ICam06 operator requires images of at least 32x32 pixels, got %dx%d",
+			bounds.Dx(), bounds.Dy())
+	}
+	return nil
+}
+
 // Process creates an HDR image from multiple exposure images
 func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 	if len(images) < 2 {
 		return nil, errors.New("at least two images are required")
+	}
+
+	// Validate image size requirements
+	if err := p.validateImageSize(images[0]); err != nil {
+		return nil, err
 	}
 
 	// Convert regular images to HDR images
@@ -72,22 +90,28 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 	bounds := hdrImages[0].Bounds()
 	merged := hdr.NewRGB(bounds)
 
-	// Simple exposure fusion (average method)
+	// Weighted exposure fusion
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			var sumR, sumG, sumB float64
+			var sumR, sumG, sumB, sumWeight float64
 			for _, img := range hdrImages {
 				r, g, b, _ := img.HDRAt(x, y).HDRRGBA()
-				sumR += r
-				sumG += g
-				sumB += b
+				// Calculate weight based on pixel brightness
+				brightness := (r + g + b) / 3.0
+				weight := p.calculateWeight(brightness)
+				sumR += r * weight
+				sumG += g * weight
+				sumB += b * weight
+				sumWeight += weight
 			}
-			n := float64(len(hdrImages))
-			merged.Set(x, y, hdrcolor.RGB{
-				R: sumR / n,
-				G: sumG / n,
-				B: sumB / n,
-			})
+
+			if sumWeight > 0 {
+				merged.Set(x, y, hdrcolor.RGB{
+					R: sumR / sumWeight,
+					G: sumG / sumWeight,
+					B: sumB / sumWeight,
+				})
+			}
 		}
 	}
 
@@ -98,12 +122,29 @@ func (p *HDRProcessor) Process(images []image.Image) (image.Image, error) {
 		tm = tmo.NewReinhard05(merged, p.params["intensity"], p.params["light"], p.params["gamma"])
 	case "drago03":
 		tm = tmo.NewDrago03(merged, p.params["gamma"])
+	case "linear":
+		tm = tmo.NewLinear(merged)
+	case "logarithmic":
+		tm = tmo.NewLogarithmic(merged)
+	case "durand":
+		tm = tmo.NewDurand(merged, p.params["saturation"])
+	case "custom_reinhard05":
+		tm = tmo.NewCustomReinhard05(merged, p.params["intensity"], p.params["light"], p.params["gamma"])
+	case "icam06":
+		tm = tmo.NewICam06(merged, p.params["gamma"], p.params["contrast"], p.params["chromatic"])
 	default:
 		return nil, fmt.Errorf("unsupported tone mapper: %s", p.toneMapper)
 	}
 
-	// Return tone mapped image
 	return tm.Perform(), nil
+}
+
+// calculateWeight returns a weight for exposure fusion based on pixel brightness
+func (p *HDRProcessor) calculateWeight(v float64) float64 {
+	// Weight function favoring mid-range values
+	const mid = 0.5
+	diff := v - mid
+	return math.Exp(-diff * diff * 4)
 }
 
 // convertToHDR converts a regular image to HDR format

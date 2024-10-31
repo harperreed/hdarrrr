@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -66,7 +67,7 @@ func createTestImage(width, height int, colorModel color.Model) image.Image {
 // 	hdrImg := hdr.NewRGB(bounds)
 
 // 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-// 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+// 		for x := bounds.Max.X; x < bounds.Max.X; x++ {
 // 			r, g, b, _ := img.At(x, y).RGBA()
 // 			hdrImg.Set(x, y, hdrcolor.RGB{
 // 				R: float64(r) / 0xffff,
@@ -189,6 +190,83 @@ func TestHDRProcessing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateImageProperties(tt.images)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestCommandLineArguments(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []string
+		expectError bool
+	}{
+		{
+			name: "Valid arguments with default tonemapper",
+			args: []string{
+				"-low", "path/to/low.jpg",
+				"-mid", "path/to/mid.jpg",
+				"-high", "path/to/high.jpg",
+				"-output", "path/to/output.jpg",
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid arguments with custom tonemapper",
+			args: []string{
+				"-low", "path/to/low.jpg",
+				"-mid", "path/to/mid.jpg",
+				"-high", "path/to/high.jpg",
+				"-output", "path/to/output.jpg",
+				"-tonemapper", "linear",
+			},
+			expectError: false,
+		},
+		{
+			name: "Invalid tonemapper",
+			args: []string{
+				"-low", "path/to/low.jpg",
+				"-mid", "path/to/mid.jpg",
+				"-high", "path/to/high.jpg",
+				"-output", "path/to/output.jpg",
+				"-tonemapper", "invalid",
+			},
+			expectError: true,
+		},
+		{
+			name: "Missing required arguments",
+			args: []string{
+				"-low", "path/to/low.jpg",
+				"-mid", "path/to/mid.jpg",
+			},
+			expectError: true,
+		},
+		{
+			name: "Invalid gamma value",
+			args: []string{
+				"-low", "path/to/low.jpg",
+				"-mid", "path/to/mid.jpg",
+				"-high", "path/to/high.jpg",
+				"-output", "path/to/output.jpg",
+				"-gamma", "-1.0",
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			flag.CommandLine = flag.NewFlagSet(tt.name, flag.ContinueOnError)
+			err := flag.CommandLine.Parse(tt.args)
 
 			if tt.expectError {
 				if err == nil {

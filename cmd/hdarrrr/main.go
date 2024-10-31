@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mdouchement/hdr" // P1455
+	"github.com/mdouchement/hdr"
 	"github.com/harperreed/hdarrrr/pkg/align"
 	"github.com/harperreed/hdarrrr/pkg/imaging"
 )

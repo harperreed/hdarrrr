@@ -238,3 +238,43 @@ func TestSaveImage(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadImagesWithDifferentProperties(t *testing.T) {
+	// Create test files with different properties
+	file1, cleanup1 := createTestImageFile(t, "png", color.RGBA{R: 255, A: 255})
+	defer cleanup1()
+	file2, cleanup2 := createTestImageFile(t, "jpeg", color.RGBA{G: 255, A: 255})
+	defer cleanup2()
+
+	_, err := LoadImages(file1, file2)
+	if err == nil {
+		t.Error("Expected error due to different image properties, got nil")
+	}
+}
+
+func TestLoadImageUnsupportedFormat(t *testing.T) {
+	// Create a temporary file with an unsupported format
+	tmpFile, err := os.CreateTemp("", "test_*.bmp")
+	if err != nil {
+		t.Fatal("Failed to create temp file:", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	_, err = LoadImage(tmpFile.Name())
+	if err == nil {
+		t.Error("Expected error due to unsupported format, got nil")
+	}
+}
+
+func TestSaveImageUnsupportedFormat(t *testing.T) {
+	img := hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{R: 255, A: 255}))
+
+	// Try to save the image with an unsupported format
+	tmpFile := filepath.Join(os.TempDir(), "test_output.bmp")
+	defer os.Remove(tmpFile)
+
+	err := SaveImage(img, tmpFile)
+	if err == nil {
+		t.Error("Expected error due to unsupported format, got nil")
+	}
+}

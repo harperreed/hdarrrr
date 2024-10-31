@@ -46,6 +46,15 @@ func TestAlignImages(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "Nil image in list",
+			images: []hdr.Image{
+				createTestImage(100, 100),
+				nil,
+				createTestImage(100, 100),
+			},
+			expectError: true,
+		},
 	}
 
 	for _, tt := range tests {

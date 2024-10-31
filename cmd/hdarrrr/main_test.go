@@ -5,9 +5,6 @@ import (
 	"image"
 	"image/color"
 	"testing"
-
-	"github.com/mdouchement/hdr"
-	"github.com/mdouchement/hdr/hdrcolor"
 )
 
 // validateImageProperties checks if all images have matching dimensions and color models
@@ -63,23 +60,23 @@ func createTestImage(width, height int, colorModel color.Model) image.Image {
 }
 
 // createHDRImage converts a regular image to HDR format
-func createHDRImage(width, height int, colorModel color.Model) hdr.Image {
-	img := createTestImage(width, height, colorModel)
-	bounds := img.Bounds()
-	hdrImg := hdr.NewRGB(bounds)
+// func createHDRImage(width, height int, colorModel color.Model) hdr.Image {
+// 	img := createTestImage(width, height, colorModel)
+// 	bounds := img.Bounds()
+// 	hdrImg := hdr.NewRGB(bounds)
 
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, _ := img.At(x, y).RGBA()
-			hdrImg.Set(x, y, hdrcolor.RGB{
-				R: float64(r) / 0xffff,
-				G: float64(g) / 0xffff,
-				B: float64(b) / 0xffff,
-			})
-		}
-	}
-	return hdrImg
-}
+// 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+// 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+// 			r, g, b, _ := img.At(x, y).RGBA()
+// 			hdrImg.Set(x, y, hdrcolor.RGB{
+// 				R: float64(r) / 0xffff,
+// 				G: float64(g) / 0xffff,
+// 				B: float64(b) / 0xffff,
+// 			})
+// 		}
+// 	}
+// 	return hdrImg
+// }
 
 func TestValidateImageProperties(t *testing.T) {
 	tests := []struct {

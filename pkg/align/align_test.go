@@ -4,26 +4,23 @@ import (
 	"image"
 	"image/color"
 	"testing"
-
-	"github.com/mdouchement/hdr"
-	"github.com/mdouchement/hdr/hdrcolor"
 )
 
 // createTestHDRImage creates a test HDR image with specified dimensions
-func createTestHDRImage(width, height int) hdr.Image {
-	img := hdr.NewRGB(image.Rect(0, 0, width, height))
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			// Set a test color value
-			img.Set(x, y, hdrcolor.RGB{
-				R: 0.5,
-				G: 0.5,
-				B: 0.5,
-			})
-		}
-	}
-	return img
-}
+// func createTestHDRImage(width, height int) hdr.Image {
+// 	img := hdr.NewRGB(image.Rect(0, 0, width, height))
+// 	for y := 0; y < height; y++ {
+// 		for x := 0; x < width; x++ {
+// 			// Set a test color value
+// 			img.Set(x, y, hdrcolor.RGB{
+// 				R: 0.5,
+// 				G: 0.5,
+// 				B: 0.5,
+// 			})
+// 		}
+// 	}
+// 	return img
+// }
 
 func TestAlignImages(t *testing.T) {
 	tests := []struct {

@@ -9,9 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/mdouchement/hdr"
-	"github.com/mdouchement/hdr/hdrcolor"
 )
 
 // createTestImage creates a test image with specified dimensions and color
@@ -26,23 +23,23 @@ func createTestImage(width, height int, c color.Color) image.Image {
 }
 
 // createHDRImage creates an HDR image from a regular image
-func createHDRImage(width, height int, c color.Color) hdr.Image {
-	img := createTestImage(width, height, c)
-	bounds := img.Bounds()
-	hdrImg := hdr.NewRGB(bounds)
+// func createHDRImage(width, height int, c color.Color) hdr.Image {
+// 	img := createTestImage(width, height, c)
+// 	bounds := img.Bounds()
+// 	hdrImg := hdr.NewRGB(bounds)
 
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, _ := img.At(x, y).RGBA()
-			hdrImg.Set(x, y, hdrcolor.RGB{
-				R: float64(r) / 0xffff,
-				G: float64(g) / 0xffff,
-				B: float64(b) / 0xffff,
-			})
-		}
-	}
-	return hdrImg
-}
+// 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+// 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+// 			r, g, b, _ := img.At(x, y).RGBA()
+// 			hdrImg.Set(x, y, hdrcolor.RGB{
+// 				R: float64(r) / 0xffff,
+// 				G: float64(g) / 0xffff,
+// 				B: float64(b) / 0xffff,
+// 			})
+// 		}
+// 	}
+// 	return hdrImg
+// }
 
 // createTestImageFile creates a temporary image file for testing
 func createTestImageFile(t *testing.T, format string, c color.Color) (string, func()) {

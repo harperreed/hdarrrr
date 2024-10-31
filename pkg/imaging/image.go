@@ -9,7 +9,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/harperreed/hdarrrr/pkg/align"
+	"github.com/mdouchement/hdr"
 )
 
 // SupportedFormats contains the file extensions we support
@@ -47,9 +47,9 @@ func ValidateImageProperties(baseProps, props ImageProperties) bool {
 		baseProps.Format == props.Format
 }
 
-// LoadImages loads multiple images from file paths
-func LoadImages(paths ...string) ([]image.Image, error) {
-	images := make([]image.Image, len(paths))
+// LoadImages loads multiple images from file paths and returns hdr.Image type
+func LoadImages(paths ...string) ([]hdr.Image, error) {
+	images := make([]hdr.Image, len(paths))
 
 	for i, path := range paths {
 		img, err := LoadImage(path)
@@ -73,8 +73,8 @@ func LoadImages(paths ...string) ([]image.Image, error) {
 	return images, nil
 }
 
-// LoadImage loads a single image from a file path
-func LoadImage(filepath string) (image.Image, error) {
+// LoadImage loads a single image from a file path and returns hdr.Image type
+func LoadImage(filepath string) (hdr.Image, error) {
 	ext := strings.ToLower(path.Ext(filepath))
 	if !SupportedFormats[ext] {
 		return nil, errors.New("unsupported image format: " + ext + ". Supported formats: PNG, JPEG")
@@ -97,11 +97,11 @@ func LoadImage(filepath string) (image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	return img, nil
+	return hdr.NewImageFromGoImage(img), nil
 }
 
-// SaveImage saves an image to a file path
-func SaveImage(img image.Image, outputPath string) error {
+// SaveImage saves an hdr.Image to a file path
+func SaveImage(img hdr.Image, outputPath string) error {
 	file, err := os.Create(outputPath)
 	if err != nil {
 		return err
@@ -111,16 +111,16 @@ func SaveImage(img image.Image, outputPath string) error {
 	ext := strings.ToLower(path.Ext(outputPath))
 	switch ext {
 	case ".jpg", ".jpeg":
-		return jpeg.Encode(file, img, &jpeg.Options{Quality: 95})
+		return jpeg.Encode(file, img.ToGoImage(), &jpeg.Options{Quality: 95})
 	case ".png":
-		return png.Encode(file, img)
+		return png.Encode(file, img.ToGoImage())
 	default:
 		return errors.New("unsupported output format: " + ext + ". Supported formats: PNG, JPEG")
 	}
 }
 
 // AlignImages aligns multiple images using feature matching
-func AlignImages(images []image.Image) ([]image.Image, error) {
+func AlignImages(images []hdr.Image) ([]hdr.Image, error) {
 	alignedImages, err := align.AlignImages(images)
 	if err != nil {
 		return nil, err

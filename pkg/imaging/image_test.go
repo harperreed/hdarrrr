@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/mdouchement/hdr"
 )
 
 // createTestImage creates a test image with specified dimensions and color
@@ -133,24 +135,24 @@ func TestLoadImage(t *testing.T) {
 func TestAlignImages(t *testing.T) {
 	tests := []struct {
 		name        string
-		images      []image.Image
+		images      []hdr.Image
 		expectError bool
 	}{
 		{
 			name: "Aligned images",
-			images: []image.Image{
-				createTestImage(2, 2, color.RGBA{R: 255, A: 255}),
-				createTestImage(2, 2, color.RGBA{G: 255, A: 255}),
-				createTestImage(2, 2, color.RGBA{B: 255, A: 255}),
+			images: []hdr.Image{
+				hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{R: 255, A: 255})),
+				hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{G: 255, A: 255})),
+				hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{B: 255, A: 255})),
 			},
 			expectError: false,
 		},
 		{
 			name: "Misaligned images",
-			images: []image.Image{
-				createTestImage(2, 2, color.RGBA{R: 255, A: 255}),
-				createTestImage(3, 3, color.RGBA{G: 255, A: 255}), // Different size
-				createTestImage(2, 2, color.RGBA{B: 255, A: 255}),
+			images: []hdr.Image{
+				hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{R: 255, A: 255})),
+				hdr.NewImageFromGoImage(createTestImage(3, 3, color.RGBA{G: 255, A: 255})), // Different size
+				hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{B: 255, A: 255})),
 			},
 			expectError: true,
 		},
@@ -209,7 +211,7 @@ func TestSaveImage(t *testing.T) {
 		},
 	}
 
-	img := createTestImage(2, 2, color.RGBA{R: 255, A: 255})
+	img := hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{R: 255, A: 255}))
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

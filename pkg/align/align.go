@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"image"
+
+	"github.com/mdouchement/hdr"
 )
 
 // Aligner defines the interface for image alignment implementations
@@ -22,7 +24,7 @@ func NewBasicAligner() *BasicAligner {
 // Align validates image dimensions and returns the original images.
 // This implementation ensures images are the same size but does not perform
 // any pixel-level alignment.
-func (a *BasicAligner) Align(images []image.Image) ([]image.Image, error) {
+func (a *BasicAligner) Align(images []hdr.Image) ([]hdr.Image, error) {
 	if len(images) < 2 {
 		return nil, errors.New("at least two images are required for alignment")
 	}
@@ -38,7 +40,7 @@ func (a *BasicAligner) Align(images []image.Image) ([]image.Image, error) {
 }
 
 // AlignImages is a convenience function that uses the BasicAligner
-func AlignImages(images []image.Image) ([]image.Image, error) {
+func AlignImages(images []hdr.Image) ([]hdr.Image, error) {
 	aligner := NewBasicAligner()
 	return aligner.Align(images)
 }

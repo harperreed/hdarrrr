@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/harperreed/hdarrrr/internal/processor"
+	"github.com/mdouchement/hdr" // P1455
 	"github.com/harperreed/hdarrrr/pkg/align"
 	"github.com/harperreed/hdarrrr/pkg/imaging"
 )
@@ -58,9 +58,8 @@ func main() {
 		log.Fatal("Error validating image properties:", err)
 	}
 
-	// Process HDR
-	hdrProcessor := processor.NewHDRProcessor()
-	output, err := hdrProcessor.Process(alignedImages)
+	// Process HDR using hdr.Merge
+	hdrImage, err := hdr.Merge(alignedImages)
 	if err != nil {
 		log.Fatal("Error processing HDR:", err)
 	}
@@ -73,7 +72,7 @@ func main() {
 	}
 
 	// Save the result
-	if err := imaging.SaveImage(output, *outputPath); err != nil {
+	if err := imaging.SaveImage(hdrImage, *outputPath); err != nil {
 		log.Fatal("Error saving output image:", err)
 	}
 

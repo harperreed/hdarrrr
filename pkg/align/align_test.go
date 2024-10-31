@@ -3,39 +3,46 @@ package align
 import (
 	"image"
 	"testing"
+
+	"github.com/mdouchement/hdr"
 )
+
+func createTestImage(width, height int) hdr.Image {
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	return hdr.NewImageFromGoImage(img)
+}
 
 func TestAlignImages(t *testing.T) {
 	tests := []struct {
 		name        string
-		images      []image.Image
+		images      []hdr.Image
 		expectError bool
 	}{
 		{
 			name: "Same size images",
-			images: []image.Image{
-				image.NewRGBA(image.Rect(0, 0, 100, 100)),
-				image.NewRGBA(image.Rect(0, 0, 100, 100)),
+			images: []hdr.Image{
+				createTestImage(100, 100),
+				createTestImage(100, 100),
 			},
 			expectError: false,
 		},
 		{
 			name: "Different size images",
-			images: []image.Image{
-				image.NewRGBA(image.Rect(0, 0, 100, 100)),
-				image.NewRGBA(image.Rect(0, 0, 200, 200)),
+			images: []hdr.Image{
+				createTestImage(100, 100),
+				createTestImage(200, 200),
 			},
 			expectError: true,
 		},
 		{
 			name:        "Empty image list",
-			images:      []image.Image{},
+			images:      []hdr.Image{},
 			expectError: true,
 		},
 		{
 			name: "Single image",
-			images: []image.Image{
-				image.NewRGBA(image.Rect(0, 0, 100, 100)),
+			images: []hdr.Image{
+				createTestImage(100, 100),
 			},
 			expectError: true,
 		},

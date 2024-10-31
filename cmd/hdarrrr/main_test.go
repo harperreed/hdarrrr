@@ -4,6 +4,8 @@ import (
 	"image"
 	"image/color"
 	"testing"
+
+	"github.com/mdouchement/hdr"
 )
 
 // createTestImage creates a test image with specified dimensions and color model
@@ -29,54 +31,54 @@ func createTestImage(width, height int, colorModel color.Model) image.Image {
 func TestValidateImageProperties(t *testing.T) {
 	tests := []struct {
 		name        string
-		images      []image.Image
+		images      []hdr.Image
 		expectError bool
 	}{
 		{
 			name: "Valid aligned images - same dimensions and color model",
-			images: []image.Image{
-				createTestImage(100, 100, color.RGBAModel),
-				createTestImage(100, 100, color.RGBAModel),
-				createTestImage(100, 100, color.RGBAModel),
+			images: []hdr.Image{
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
 			},
 			expectError: false,
 		},
 		{
 			name: "Different dimensions",
-			images: []image.Image{
-				createTestImage(100, 100, color.RGBAModel),
-				createTestImage(200, 200, color.RGBAModel),
-				createTestImage(100, 100, color.RGBAModel),
+			images: []hdr.Image{
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
+				hdr.NewImageFromGoImage(createTestImage(200, 200, color.RGBAModel)),
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
 			},
 			expectError: true,
 		},
 		{
 			name: "Different color models",
-			images: []image.Image{
-				createTestImage(100, 100, color.RGBAModel),
-				createTestImage(100, 100, color.GrayModel),
-				createTestImage(100, 100, color.RGBAModel),
+			images: []hdr.Image{
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.GrayModel)),
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
 			},
 			expectError: true,
 		},
 		{
 			name: "Single image",
-			images: []image.Image{
-				createTestImage(100, 100, color.RGBAModel),
+			images: []hdr.Image{
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
 			},
 			expectError: true,
 		},
 		{
 			name:        "Empty image list",
-			images:      []image.Image{},
+			images:      []hdr.Image{},
 			expectError: true,
 		},
 		{
 			name: "Nil image in list",
-			images: []image.Image{
-				createTestImage(100, 100, color.RGBAModel),
+			images: []hdr.Image{
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
 				nil,
-				createTestImage(100, 100, color.RGBAModel),
+				hdr.NewImageFromGoImage(createTestImage(100, 100, color.RGBAModel)),
 			},
 			expectError: true,
 		},

@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"image"
 	"image/color"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"

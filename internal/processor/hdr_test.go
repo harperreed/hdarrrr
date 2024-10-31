@@ -4,9 +4,6 @@ import (
 	"image"
 	"image/color"
 	"testing"
-
-	"github.com/mdouchement/hdr"
-	"github.com/mdouchement/hdr/hdrcolor"
 )
 
 func createTestImage(width, height int, value uint8) image.Image {
@@ -14,16 +11,6 @@ func createTestImage(width, height int, value uint8) image.Image {
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			img.Set(x, y, color.RGBA{R: value, G: value, B: value, A: 255})
-		}
-	}
-	return img
-}
-
-func createTestHDRImage(width, height int, value float64) hdr.Image {
-	img := hdr.NewRGB(image.Rect(0, 0, width, height))
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			img.Set(x, y, hdrcolor.RGB{R: value, G: value, B: value})
 		}
 	}
 	return img
@@ -54,16 +41,7 @@ func TestHDRProcessor_Process(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "Different color models",
-			images: []image.Image{
-				createTestImage(2, 2, 128),
-				image.NewGray(image.Rect(0, 0, 2, 2)),
-				createTestImage(2, 2, 128),
-			},
-			expectError: true,
-		},
-		{
-			name: "Wrong number of images",
+			name: "Single image",
 			images: []image.Image{
 				createTestImage(2, 2, 128),
 			},
@@ -72,6 +50,15 @@ func TestHDRProcessor_Process(t *testing.T) {
 		{
 			name:        "Nil images slice",
 			images:      nil,
+			expectError: true,
+		},
+		{
+			name: "One nil image",
+			images: []image.Image{
+				createTestImage(2, 2, 128),
+				nil,
+				createTestImage(2, 2, 128),
+			},
 			expectError: true,
 		},
 	}

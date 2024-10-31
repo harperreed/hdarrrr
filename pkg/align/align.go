@@ -6,13 +6,27 @@ import (
 	"image"
 )
 
-// AlignImages aligns multiple images using feature matching
-func AlignImages(images []image.Image) ([]image.Image, error) {
+// Aligner defines the interface for image alignment implementations
+type Aligner interface {
+	Align(images []image.Image) ([]image.Image, error)
+}
+
+// BasicAligner provides simple dimension validation
+type BasicAligner struct{}
+
+// NewBasicAligner creates a new BasicAligner
+func NewBasicAligner() *BasicAligner {
+	return &BasicAligner{}
+}
+
+// Align validates image dimensions and returns the original images.
+// This implementation ensures images are the same size but does not perform
+// any pixel-level alignment.
+func (a *BasicAligner) Align(images []image.Image) ([]image.Image, error) {
 	if len(images) < 2 {
 		return nil, errors.New("at least two images are required for alignment")
 	}
 
-	// Validate image dimensions
 	baseBounds := images[0].Bounds()
 	for i, img := range images[1:] {
 		if img.Bounds() != baseBounds {
@@ -20,7 +34,11 @@ func AlignImages(images []image.Image) ([]image.Image, error) {
 		}
 	}
 
-	// For now, just return the original images since we haven't implemented
-	// the actual alignment algorithm yet
 	return images, nil
+}
+
+// AlignImages is a convenience function that uses the BasicAligner
+func AlignImages(images []image.Image) ([]image.Image, error) {
+	aligner := NewBasicAligner()
+	return aligner.Align(images)
 }

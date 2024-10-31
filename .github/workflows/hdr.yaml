@@ -10,9 +10,9 @@ env:
     INPUT_DIR: "examples/input"
     OUTPUT_DIR: "examples/output"
     OUTPUT_FILE: "hdr_result.jpg"
-    TEST_IMAGE_LOW: "https://www.easyhdr.com/examples/pond/pond1.jpg"
-    TEST_IMAGE_MID: "https://www.easyhdr.com/examples/pond/pond3.jpg"
-    TEST_IMAGE_HIGH: "https://www.easyhdr.com/examples/pond/pond2.jpg"
+    TEST_IMAGE_LOW: "https://www.easyhdr.com/examples/pond/pond2.jpg"
+    TEST_IMAGE_MID: "https://www.easyhdr.com/examples/pond/pond1.jpg"
+    TEST_IMAGE_HIGH: "https://www.easyhdr.com/examples/pond/pond3.jpg"
 
 jobs:
     process-hdr:
@@ -22,7 +22,7 @@ jobs:
         permissions:
             contents: read
             pull-requests: write
-            actions: write # Needed for artifact upload
+            actions: write
 
         steps:
             - name: Checkout repository
@@ -114,8 +114,9 @@ jobs:
                     -high "${{ env.INPUT_DIR }}/high.jpg" \
                     -output "${{ env.OUTPUT_DIR }}/${{ env.OUTPUT_FILE }}"
 
-                  if [ $? -ne 0 ]; then
-                    echo "::error::HDR processing failed or timed out"
+                  exit_code=$?
+                  if [ $exit_code -ne 0 ]; then
+                    echo "::error::HDR processing failed with exit code $exit_code"
                     exit 1
                   fi
 
@@ -130,34 +131,18 @@ jobs:
                     exit 1
                   fi
 
-                  # Create preview version
-                  convert "$output_file" -quality 60 -resize "800x800>" "${{ env.OUTPUT_DIR }}/preview.jpg"
-
-                  # Get file sizes
+                  # Get file size
                   size=$(stat -c%s "$output_file")
-                  preview_size=$(stat -c%s "${{ env.OUTPUT_DIR }}/preview.jpg")
-
                   echo "size=$size" >> $GITHUB_OUTPUT
-                  echo "preview_size=$preview_size" >> $GITHUB_OUTPUT
                   echo "HDR processing completed successfully. Output size: $size bytes"
 
-            - name: Upload full resolution result
-              uses: actions/upload-artifact@v4
+            - name: Upload HDR result image
+              uses: edunad/actions-image@v2.0.0
               with:
-                  name: hdr-result-${{ github.event.pull_request.number }}
-                  path: ${{ env.OUTPUT_DIR }}/${{ env.OUTPUT_FILE }}
-                  retention-days: 7
-                  if-no-files-found: error
-
-            - name: Create preview image for comment
-              id: prepare-preview
-              run: |
-                  preview_file="${{ env.OUTPUT_DIR }}/preview.jpg"
-
-                  # Create data URL for preview
-                  mime_type="image/jpeg"
-                  base64_preview=$(base64 -w 0 "$preview_file")
-                  echo "preview_data=data:${mime_type};base64,${base64_preview}" >> $GITHUB_OUTPUT
+                  path: "${{ env.OUTPUT_DIR }}/${{ env.OUTPUT_FILE }}"
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  title: "HDR Processing Result 🎨"
+                  annotationLevel: "notice"
 
             - name: Find existing comment
               uses: peter-evans/find-comment@v2
@@ -177,13 +162,8 @@ jobs:
 
                       Generated at: ${{ github.event.pull_request.updated_at }}
 
-                      ### Preview
-                      ![HDR Result Preview](${{ steps.prepare-preview.outputs.preview_data }})
-
-                      ### Details
-                      - Full resolution size: ${{ steps.process-hdr.outputs.size }} bytes
-                      - Preview size: ${{ steps.process-hdr.outputs.preview_size }} bytes
-                      - Full resolution image: [Download Artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+                      The HDR processed image has been uploaded to the PR as an annotation.
+                      File size: ${{ steps.process-hdr.outputs.size }} bytes
 
                       <details>
                       <summary>Processing Details</summary>
@@ -195,3 +175,12 @@ jobs:
                       - Duration: ${{ job.duration }}
                       </details>
                   edit-mode: replace
+
+            - name: Upload all images on failure
+              if: ${{ failure() }}
+              uses: edunad/actions-image@v2.0.0
+              with:
+                  path: "${{ env.INPUT_DIR }}/*.jpg"
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  title: "HDR Processing Input Images 🔍"
+                  annotationLevel: "failure"

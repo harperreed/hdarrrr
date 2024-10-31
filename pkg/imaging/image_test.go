@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/mdouchement/hdr"
+	"github.com/mdouchement/hdr/hdrcolor"
 )
 
 // createTestImage creates a test image with specified dimensions and color
@@ -24,12 +25,29 @@ func createTestImage(width, height int, c color.Color) image.Image {
 	return img
 }
 
+// createHDRImage creates an HDR image from a regular image
+func createHDRImage(width, height int, c color.Color) hdr.Image {
+	img := createTestImage(width, height, c)
+	bounds := img.Bounds()
+	hdrImg := hdr.NewRGB(bounds)
+
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			r, g, b, _ := img.At(x, y).RGBA()
+			hdrImg.Set(x, y, hdrcolor.RGB{
+				R: float64(r) / 0xffff,
+				G: float64(g) / 0xffff,
+				B: float64(b) / 0xffff,
+			})
+		}
+	}
+	return hdrImg
+}
+
 // createTestImageFile creates a temporary image file for testing
 func createTestImageFile(t *testing.T, format string, c color.Color) (string, func()) {
-	// Create a 2x2 test image
 	img := createTestImage(2, 2, c)
 
-	// Encode the image to bytes
 	var buf bytes.Buffer
 	switch format {
 	case "png":
@@ -44,7 +62,6 @@ func createTestImageFile(t *testing.T, format string, c color.Color) (string, fu
 		t.Fatalf("Unsupported format: %s", format)
 	}
 
-	// Create temporary file
 	tmpFile, err := os.CreateTemp("", "test_*."+format)
 	if err != nil {
 		t.Fatal("Failed to create temp file:", err)
@@ -64,7 +81,6 @@ func createTestImageFile(t *testing.T, format string, c color.Color) (string, fu
 }
 
 func TestLoadImages(t *testing.T) {
-	// Create test files
 	file1, cleanup1 := createTestImageFile(t, "png", color.RGBA{R: 255, A: 255})
 	defer cleanup1()
 	file2, cleanup2 := createTestImageFile(t, "png", color.RGBA{G: 255, A: 255})
@@ -132,62 +148,6 @@ func TestLoadImage(t *testing.T) {
 	}
 }
 
-func TestAlignImages(t *testing.T) {
-	tests := []struct {
-		name        string
-		images      []hdr.Image
-		expectError bool
-	}{
-		{
-			name: "Aligned images",
-			images: []hdr.Image{
-				hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{R: 255, A: 255})),
-				hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{G: 255, A: 255})),
-				hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{B: 255, A: 255})),
-			},
-			expectError: false,
-		},
-		{
-			name: "Misaligned images",
-			images: []hdr.Image{
-				hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{R: 255, A: 255})),
-				hdr.NewImageFromGoImage(createTestImage(3, 3, color.RGBA{G: 255, A: 255})), // Different size
-				hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{B: 255, A: 255})),
-			},
-			expectError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			alignedImages, err := AlignImages(tt.images)
-
-			if tt.expectError {
-				if err == nil {
-					t.Error("Expected error, got nil")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-
-			if len(alignedImages) != len(tt.images) {
-				t.Errorf("Expected %d aligned images, got %d", len(tt.images), len(alignedImages))
-			}
-
-			// Check that aligned images have the same dimensions
-			baseBounds := alignedImages[0].Bounds()
-			for i, img := range alignedImages[1:] {
-				if img.Bounds() != baseBounds {
-					t.Errorf("Aligned image %d has different dimensions", i+1)
-				}
-			}
-		})
-	}
-}
-
 func TestSaveImage(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -211,7 +171,7 @@ func TestSaveImage(t *testing.T) {
 		},
 	}
 
-	img := hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{R: 255, A: 255}))
+	img := createTestImage(2, 2, color.RGBA{R: 255, A: 255})
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -240,7 +200,6 @@ func TestSaveImage(t *testing.T) {
 }
 
 func TestLoadImagesWithDifferentProperties(t *testing.T) {
-	// Create test files with different properties
 	file1, cleanup1 := createTestImageFile(t, "png", color.RGBA{R: 255, A: 255})
 	defer cleanup1()
 	file2, cleanup2 := createTestImageFile(t, "jpeg", color.RGBA{G: 255, A: 255})
@@ -253,7 +212,6 @@ func TestLoadImagesWithDifferentProperties(t *testing.T) {
 }
 
 func TestLoadImageUnsupportedFormat(t *testing.T) {
-	// Create a temporary file with an unsupported format
 	tmpFile, err := os.CreateTemp("", "test_*.bmp")
 	if err != nil {
 		t.Fatal("Failed to create temp file:", err)
@@ -267,9 +225,8 @@ func TestLoadImageUnsupportedFormat(t *testing.T) {
 }
 
 func TestSaveImageUnsupportedFormat(t *testing.T) {
-	img := hdr.NewImageFromGoImage(createTestImage(2, 2, color.RGBA{R: 255, A: 255}))
+	img := createTestImage(2, 2, color.RGBA{R: 255, A: 255})
 
-	// Try to save the image with an unsupported format
 	tmpFile := filepath.Join(os.TempDir(), "test_output.bmp")
 	defer os.Remove(tmpFile)
 

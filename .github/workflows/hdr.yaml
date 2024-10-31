@@ -98,7 +98,7 @@ jobs:
               run: |
                   echo "Starting HDR processing..."
 
-                  timeout 300s go run ./cmd/hdarrrr/main.go \
+                  timeout 300s go run ./cmd/hdarrrr/cli.go \
                     -low "${{ env.INPUT_DIR }}/low.jpg" \
                     -mid "${{ env.INPUT_DIR }}/mid.jpg" \
                     -high "${{ env.INPUT_DIR }}/high.jpg" \
